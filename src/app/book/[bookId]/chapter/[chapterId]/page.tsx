@@ -7,7 +7,7 @@ import {
   useLayoutEffect,
   useCallback,
 } from "react";
-import { Mic, Moon, Sun, MoreHorizontal, Loader2, Pencil, Lock, Bookmark, User, Compass, Sparkles, ChevronLeft } from "lucide-react";
+import { Mic, Moon, Sun, MoreHorizontal, Loader2, Pencil, Lock, Bookmark, User, Compass, Sparkles, ChevronLeft, ClipboardPaste } from "lucide-react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { UserButton, useAuth } from "@clerk/nextjs";
@@ -406,6 +406,39 @@ export default function BookEditor() {
     setBlocks((prev) => [...prev, { id, text, note_type: 'normal' }]);
     setHighlightBlockId(id);
     window.setTimeout(() => setHighlightBlockId(null), 2000);
+  };
+
+  const handleAddManualBlock = async () => {
+    if (!chapterId || isProcessing || isRecording) return;
+    
+    setIsProcessing(true);
+    try {
+      const supabase = createClient();
+      const newOrderIndex = blocks.length;
+      
+      const { data, error } = await supabase
+        .from("blocks")
+        .insert({
+          chapter_id: chapterId,
+          content: "",
+          note_type: "normal",
+          order_index: newOrderIndex,
+        })
+        .select()
+        .single();
+        
+      if (error) throw error;
+      
+      if (data) {
+        appendBlock(data.id, "");
+        startEdit(data.id);
+      }
+    } catch (err) {
+      console.error("Failed to create manual block:", err);
+      showFeedback("Failed to create text box");
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const startRecording = async () => {
@@ -825,33 +858,52 @@ export default function BookEditor() {
               </div>
             )}
 
-            <button
-              onClick={handleRecordClick}
-              disabled={isProcessing || isLoading || !chapterId}
-              className={`relative flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 rounded-full shadow-2xl transition-all duration-300 ease-out hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100 ${
-                isRecording
-                  ? "bg-red-500 shadow-red-500/40 ring-4 ring-red-500/20"
-                  : isDarkMode
-                    ? "bg-zinc-100 text-zinc-900 hover:bg-white shadow-white/10"
-                    : "bg-stone-900 text-stone-50 hover:bg-black shadow-black/20"
-              }`}
-            >
-              {isRecording && (
-                <div className="absolute inset-0 rounded-full animate-ping opacity-20 bg-red-400" />
-              )}
+            <div className="flex items-center justify-center gap-4 sm:gap-6 relative w-full">
+              {/* Add Manual Block Button */}
+              <button
+                onClick={handleAddManualBlock}
+                disabled={isProcessing || isLoading || !chapterId || isRecording}
+                className={`flex items-center justify-center w-12 h-12 rounded-full shadow-lg transition-all hover:scale-105 active:scale-95 disabled:opacity-50 ${
+                  isDarkMode 
+                    ? "bg-zinc-800 text-zinc-300 hover:bg-zinc-700" 
+                    : "bg-white text-stone-600 hover:bg-stone-50"
+                }`}
+                title="Add empty text box"
+              >
+                <ClipboardPaste size={20} />
+              </button>
 
-              {isProcessing ? (
-                <Loader2
-                  size={28}
-                  className={`animate-spin ${isDarkMode ? "text-zinc-900" : "text-white"}`}
-                />
-              ) : (
-                <Mic
-                  size={28}
-                  className={`transition-colors duration-200 ${isRecording ? "text-white" : ""}`}
-                />
-              )}
-            </button>
+              <button
+                onClick={handleRecordClick}
+                disabled={isProcessing || isLoading || !chapterId}
+                className={`relative flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 rounded-full shadow-2xl transition-all duration-300 ease-out hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100 ${
+                  isRecording
+                    ? "bg-red-500 shadow-red-500/40 ring-4 ring-red-500/20"
+                    : isDarkMode
+                      ? "bg-zinc-100 text-zinc-900 hover:bg-white shadow-white/10"
+                      : "bg-stone-900 text-stone-50 hover:bg-black shadow-black/20"
+                }`}
+              >
+                {isRecording && (
+                  <div className="absolute inset-0 rounded-full animate-ping opacity-20 bg-red-400" />
+                )}
+
+                {isProcessing ? (
+                  <Loader2
+                    size={28}
+                    className={`animate-spin ${isDarkMode ? "text-zinc-900" : "text-white"}`}
+                  />
+                ) : (
+                  <Mic
+                    size={28}
+                    className={`transition-colors duration-200 ${isRecording ? "text-white" : ""}`}
+                  />
+                )}
+              </button>
+
+              {/* Empty placeholder to keep the big button centered */}
+              <div className="w-12 h-12 pointer-events-none" />
+            </div>
           </div>
         </div>
       </div>

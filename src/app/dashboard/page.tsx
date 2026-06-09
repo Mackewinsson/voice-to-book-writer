@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { UserButton, useAuth } from "@clerk/nextjs";
 import Link from "next/link";
 import ConfirmModal from "@/components/ConfirmModal";
+import CreateProjectModal from "@/components/CreateProjectModal";
 
 type BookRecord = { id: string; title: string; created_at: string; word_count?: number };
 
@@ -17,6 +18,7 @@ export default function Dashboard() {
   const [projects, setProjects] = useState<BookRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
+  const [isProjectTypeModalOpen, setIsProjectTypeModalOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
   
   const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
@@ -145,7 +147,7 @@ export default function Dashboard() {
         <div className="flex justify-between items-center">
           <h2 className="text-2xl font-semibold tracking-tight">Recent Drafts</h2>
           <button 
-            onClick={handleCreateProject}
+            onClick={() => setIsProjectTypeModalOpen(true)}
             disabled={isCreating}
             className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all shadow-sm ${
               isDarkMode 
@@ -251,6 +253,14 @@ export default function Dashboard() {
         isLoading={isDeleting}
         onConfirm={handleDeleteProject}
         onCancel={() => setProjectToDelete(null)}
+      />
+
+      <CreateProjectModal
+        isOpen={isProjectTypeModalOpen}
+        isDarkMode={isDarkMode}
+        isLoading={isCreating}
+        onClose={() => setIsProjectTypeModalOpen(false)}
+        onSelectBook={handleCreateProject}
       />
     </div>
   );

@@ -613,7 +613,7 @@ export default function BookEditor() {
       />
 
       <header
-        className={`sticky top-0 z-10 flex justify-between items-center p-4 sm:p-6 backdrop-blur-md ${
+        className={`sticky top-0 z-10 flex justify-between items-center p-4 sm:p-6 pt-[calc(1rem+env(safe-area-inset-top))] sm:pt-[calc(1.5rem+env(safe-area-inset-top))] backdrop-blur-md ${
           isDarkMode
             ? "bg-[#0c0c0e]/85 border-b border-zinc-800/80"
             : "bg-[#f7f4ef]/85 border-b border-stone-200/80"
@@ -755,7 +755,7 @@ export default function BookEditor() {
         <div ref={bottomAnchorRef} className="h-40" aria-hidden />
       </main>
 
-      <div className="fixed bottom-12 left-0 right-0 z-20 pointer-events-none flex justify-center">
+      <div className="fixed bottom-[calc(3rem+env(safe-area-inset-bottom))] left-0 right-0 z-20 pointer-events-none flex justify-center">
         <div className="pointer-events-auto flex flex-col items-center space-y-4 w-full max-w-2xl px-4">
           {isRecording && (
             <div

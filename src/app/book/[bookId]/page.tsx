@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { createClient } from "@/utils/supabase/client";
-import { Loader2, Plus, Moon, Sun, ChevronLeft, FileText, MoreVertical, Download } from "lucide-react";
+import { Loader2, Plus, Moon, Sun, ChevronLeft, FileText, MoreVertical, Download, Pencil } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { UserButton, useAuth } from "@clerk/nextjs";
 import Link from "next/link";
@@ -22,6 +22,16 @@ export default function ChapterList() {
   const [isCreating, setIsCreating] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const titleInputRef = useRef<HTMLInputElement>(null);
+
+  const handleTitleSave = async (newTitle: string) => {
+    const finalTitle = newTitle.trim() || "Untitled Draft";
+    if (book) setBook({ ...book, title: finalTitle });
+    setIsEditingTitle(false);
+    const supabase = createClient();
+    await supabase.from("books").update({ title: finalTitle }).eq("id", bookId);
+  };
 
   useEffect(() => {
     async function fetchData() {
@@ -185,9 +195,32 @@ export default function ChapterList() {
             <ChevronLeft size={20} />
           </Link>
           <div>
-            <p className={`text-[11px] uppercase tracking-[0.22em] ${isDarkMode ? "text-zinc-500" : "text-stone-500"}`}>
-              {book ? book.title : "Loading..."}
-            </p>
+            {isEditingTitle ? (
+              <input
+                ref={titleInputRef}
+                value={book?.title || ""}
+                onChange={(e) => setBook(b => b ? { ...b, title: e.target.value } : null)}
+                onBlur={(e) => handleTitleSave(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === "Escape") {
+                    handleTitleSave((e.target as HTMLInputElement).value);
+                  }
+                }}
+                className={`text-[11px] uppercase tracking-[0.22em] bg-transparent outline-none border-b border-dashed ${
+                  isDarkMode ? "text-zinc-300 border-zinc-500" : "text-stone-700 border-stone-400"
+                } w-32 sm:w-auto`}
+                autoFocus
+              />
+            ) : (
+              <p 
+                onClick={() => setIsEditingTitle(true)}
+                className={`text-[11px] uppercase tracking-[0.22em] cursor-pointer hover:opacity-70 transition-opacity flex items-center gap-1 ${isDarkMode ? "text-zinc-500" : "text-stone-500"}`}
+                title="Click to edit project name"
+              >
+                {book ? book.title : "Loading..."}
+                {book && <Pencil size={10} className="opacity-50" />}
+              </p>
+            )}
             <h1 className="text-xl font-medium tracking-tight mt-0.5">Chapters</h1>
           </div>
         </div>

@@ -13,7 +13,7 @@ export default function LandingPage() {
       <div className="fixed inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(120,90,50,0.15),_transparent_60%)] pointer-events-none" />
 
       {/* Navigation */}
-      <nav className="fixed top-0 inset-x-0 z-50 backdrop-blur-md border-b border-zinc-800/80 bg-[#0c0c0e]/80">
+      <nav className="fixed top-0 inset-x-0 z-50 backdrop-blur-md border-b border-zinc-800/80 bg-[#0c0c0e]/80 pt-[env(safe-area-inset-top)]">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center shadow-lg shadow-amber-500/20">
@@ -180,7 +180,7 @@ export default function LandingPage() {
 
       </main>
       
-      <footer className="border-t border-zinc-800/80 py-8 mt-20">
+      <footer className="border-t border-zinc-800/80 pt-8 pb-[calc(2rem+env(safe-area-inset-bottom))] mt-20">
         <div className="max-w-7xl mx-auto px-6 flex items-center justify-between text-sm text-zinc-500">
           <p>© {new Date().getFullYear()} Whisperbud. All rights reserved.</p>
           <div className="flex gap-4">

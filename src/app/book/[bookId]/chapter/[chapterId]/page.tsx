@@ -7,7 +7,7 @@ import {
   useLayoutEffect,
   useCallback,
 } from "react";
-import { Mic, Moon, Sun, MoreHorizontal, Loader2, Pencil, Lock, Bookmark, User, Compass, Sparkles, ChevronLeft, ClipboardPaste } from "lucide-react";
+import { Mic, Moon, Sun, MoreHorizontal, Loader2, Pencil, Lock, Bookmark, User, Compass, Sparkles, ChevronLeft, ClipboardPaste, Copy, Check } from "lucide-react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { UserButton, useAuth } from "@clerk/nextjs";
@@ -91,6 +91,19 @@ function TextBlock({
     const text = textareaRef.current?.value ?? block.text;
     onSave(text, block.note_type);
     onEndEdit();
+  };
+
+  const [isCopied, setIsCopied] = useState(false);
+
+  const handleCopyPrompt = async () => {
+    const prompt = `I am currently writing a book and I have left the following thought for deeper investigation:
+
+"${block.text}"
+
+Please act as an expert researcher and author assistant. Conduct a deep, comprehensive investigation on this topic to help me expand my book. Provide historical context, related interesting facts, potential arguments, and suggest how I could effectively integrate this point within my narrative.`;
+    await navigator.clipboard.writeText(prompt);
+    setIsCopied(true);
+    setTimeout(() => setIsCopied(false), 2000);
   };
 
   useLayoutEffect(() => {
@@ -188,14 +201,31 @@ function TextBlock({
           <Lock size={15} strokeWidth={1.75} />
         </button>
       ) : (
-        <button
-          type="button"
-          onClick={onStartEdit}
-          aria-label="Edit paragraph"
-          className={`absolute top-3 right-3 rounded-lg p-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 focus:opacity-100 transition-all ${actionBtnClass}`}
-        >
-          <Pencil size={15} strokeWidth={1.75} />
-        </button>
+        <div className="absolute top-3 right-3 flex items-center gap-1">
+          {block.note_type === 'investigate_later' && (
+            <button
+              type="button"
+              onClick={handleCopyPrompt}
+              aria-label="Copy prompt for AI"
+              title="Copy prompt for AI investigation"
+              className={`rounded-lg p-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 focus:opacity-100 transition-all ${
+                isCopied 
+                  ? "text-green-500 bg-green-500/10" 
+                  : actionBtnClass
+              }`}
+            >
+              {isCopied ? <Check size={15} strokeWidth={1.75} /> : <Copy size={15} strokeWidth={1.75} />}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={onStartEdit}
+            aria-label="Edit paragraph"
+            className={`rounded-lg p-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 focus:opacity-100 transition-all ${actionBtnClass}`}
+          >
+            <Pencil size={15} strokeWidth={1.75} />
+          </button>
+        </div>
       )}
     </article>
   );

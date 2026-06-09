@@ -1,157 +1,201 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { createClient } from "@/utils/supabase/client";
-import { Loader2, Plus, Moon, Sun, Library, MoreVertical } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { UserButton, useAuth } from "@clerk/nextjs";
+import { motion } from "framer-motion";
+import { Mic, BookOpen, Wand2, Sparkles, ArrowRight, Check } from "lucide-react";
 import Link from "next/link";
+import { useAuth } from "@clerk/nextjs";
 
-type BookRecord = { id: string; title: string; created_at: string };
-
-export default function Dashboard() {
-  const router = useRouter();
-  const { userId, isLoaded } = useAuth();
-  
-  const [projects, setProjects] = useState<BookRecord[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isCreating, setIsCreating] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(false);
-
-  useEffect(() => {
-    async function fetchProjects() {
-      if (!isLoaded || !userId) return;
-
-      const supabase = createClient();
-      const { data, error } = await supabase
-        .from("books")
-        .select("*")
-        .eq("user_id", userId)
-        .order("created_at", { ascending: false });
-      if (!error && data) {
-        setProjects(data);
-      }
-      setIsLoading(false);
-    }
-    fetchProjects();
-  }, [isLoaded, userId]);
-
-  const toggleDarkMode = () => {
-    setIsDarkMode(!isDarkMode);
-    if (!isDarkMode) {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
-  };
-
-  const handleCreateProject = async () => {
-    if (!userId) return;
-    setIsCreating(true);
-    const supabase = createClient();
-    
-    const { data: book, error: bookErr } = await supabase
-      .from("books")
-      .insert({ title: "Untitled Draft", user_id: userId })
-      .select()
-      .single();
-
-    if (bookErr || !book) {
-      console.error("Failed to create book", bookErr);
-      setIsCreating(false);
-      return;
-    }
-
-    // Create First Chapter automatically
-    const { error: chapterErr } = await supabase
-      .from("chapters")
-      .insert({ book_id: book.id, title: "Chapter 1" });
-
-    if (chapterErr) {
-      console.error("Failed to create chapter", chapterErr);
-    }
-
-    // Navigate to editor
-    router.push(`/book/${book.id}`);
-  };
+export default function LandingPage() {
+  const { isSignedIn } = useAuth();
 
   return (
-    <div className={`min-h-screen flex flex-col font-sans transition-colors duration-300 ${isDarkMode ? "bg-[#0c0c0e] text-zinc-100" : "bg-[#f7f4ef] text-stone-900"}`}>
-      <div className={`pointer-events-none fixed inset-0 ${isDarkMode ? "bg-[radial-gradient(ellipse_at_top,_rgba(120,90,50,0.08),_transparent_55%)]" : "bg-[radial-gradient(ellipse_at_top,_rgba(180,140,90,0.12),_transparent_55%)]"}`} aria-hidden />
+    <div className="min-h-screen bg-[#0c0c0e] text-zinc-100 font-sans selection:bg-amber-500/30">
+      <div className="fixed inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(120,90,50,0.15),_transparent_60%)] pointer-events-none" />
 
-      <header className={`sticky top-0 z-10 flex justify-between items-center p-4 sm:p-6 backdrop-blur-md ${isDarkMode ? "bg-[#0c0c0e]/85 border-b border-zinc-800/80" : "bg-[#f7f4ef]/85 border-b border-stone-200/80"}`}>
-        <div>
-          <p className={`text-[11px] uppercase tracking-[0.22em] ${isDarkMode ? "text-zinc-500" : "text-stone-500"}`}>Projects</p>
-          <h1 className="text-xl font-medium tracking-tight mt-0.5">My Books</h1>
-        </div>
-        <div className="flex gap-4 items-center">
-          <button onClick={toggleDarkMode} className={`p-2 rounded-full transition-colors ${isDarkMode ? "hover:bg-white/10" : "hover:bg-black/5"}`}>
-            {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
-          </button>
-          <UserButton />
-        </div>
-      </header>
-
-      <main className="relative flex-1 overflow-y-auto px-4 sm:px-6 md:max-w-4xl md:mx-auto w-full py-8 space-y-6">
-        
-        <div className="flex justify-between items-center">
-          <h2 className="text-2xl font-semibold tracking-tight">Recent Drafts</h2>
-          <button 
-            onClick={handleCreateProject}
-            disabled={isCreating}
-            className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all shadow-sm ${
-              isDarkMode 
-                ? "bg-zinc-100 text-zinc-900 hover:bg-white shadow-white/5" 
-                : "bg-stone-900 text-stone-50 hover:bg-black shadow-black/10"
-            }`}
-          >
-            {isCreating ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
-            New Project
-          </button>
-        </div>
-
-        {isLoading ? (
-          <div className="flex justify-center items-center py-20 opacity-50">
-            <Loader2 className="w-8 h-8 animate-spin" />
-          </div>
-        ) : projects.length === 0 ? (
-          <div className="text-center py-20 space-y-3">
-            <div className={`inline-flex p-4 rounded-full ${isDarkMode ? "bg-zinc-800/50" : "bg-stone-200/50"}`}>
-              <Library size={32} className={isDarkMode ? "text-zinc-500" : "text-stone-400"} />
+      {/* Navigation */}
+      <nav className="fixed top-0 inset-x-0 z-50 backdrop-blur-md border-b border-zinc-800/80 bg-[#0c0c0e]/80">
+        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center shadow-lg shadow-amber-500/20">
+              <Mic size={18} className="text-stone-900" />
             </div>
-            <p className={`text-xl font-medium tracking-tight ${isDarkMode ? "text-zinc-300" : "text-stone-700"}`}>No projects yet</p>
-            <p className={`text-sm ${isDarkMode ? "text-zinc-500" : "text-stone-500"}`}>Create your first book project to start writing with your voice.</p>
+            <span className="text-xl font-bold tracking-tight">Whisperbud</span>
           </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-            {projects.map(book => (
-              <Link href={`/book/${book.id}`} key={book.id}>
-                <article className={`group flex flex-col justify-between h-40 p-5 rounded-2xl border transition-all hover:-translate-y-1 hover:shadow-lg ${
-                  isDarkMode 
-                    ? "bg-zinc-900/60 border-zinc-700/80 hover:bg-zinc-800/80 hover:border-zinc-600 shadow-black/40" 
-                    : "bg-white/80 border-stone-200/90 hover:bg-white hover:border-stone-300 shadow-stone-200/50"
-                }`}>
-                  <div className="flex justify-between items-start">
-                    <div className={`p-2 rounded-xl ${isDarkMode ? "bg-zinc-800" : "bg-stone-100 group-hover:bg-stone-200"} transition-colors`}>
-                      <Library size={20} className={isDarkMode ? "text-zinc-400" : "text-stone-500"} />
-                    </div>
-                    <button className={`p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all ${isDarkMode ? "hover:bg-zinc-700 text-zinc-400" : "hover:bg-stone-100 text-stone-400"}`}>
-                      <MoreVertical size={16} />
-                    </button>
-                  </div>
-                  <div>
-                    <h3 className="font-medium text-lg tracking-tight line-clamp-1">{book.title}</h3>
-                    <p className={`text-xs mt-1 ${isDarkMode ? "text-zinc-500" : "text-stone-500"}`}>
-                      {new Date(book.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
-                    </p>
-                  </div>
-                </article>
+          <div className="flex items-center gap-4">
+            {isSignedIn ? (
+              <Link href="/dashboard" className="text-sm font-medium hover:text-amber-400 transition-colors">
+                Go to Dashboard
               </Link>
-            ))}
+            ) : (
+              <>
+                <Link href="/sign-in" className="text-sm font-medium text-zinc-400 hover:text-white transition-colors">
+                  Log in
+                </Link>
+                <Link href="/sign-up" className="text-sm font-medium bg-white text-black px-4 py-2 rounded-full hover:bg-zinc-200 transition-colors shadow-lg shadow-white/10">
+                  Get Started
+                </Link>
+              </>
+            )}
           </div>
-        )}
+        </div>
+      </nav>
+
+      <main className="relative pt-32 pb-20 px-6 max-w-7xl mx-auto space-y-32">
+        
+        {/* Hero Section */}
+        <section className="text-center max-w-4xl mx-auto space-y-8 mt-10">
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-amber-500/30 bg-amber-500/10 text-amber-400 text-sm font-medium"
+          >
+            <Sparkles size={14} />
+            <span>The future of writing is spoken.</span>
+          </motion.div>
+          
+          <motion.h1 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+            className="text-5xl sm:text-7xl font-bold tracking-tight text-transparent bg-clip-text bg-gradient-to-br from-white to-zinc-500"
+          >
+            Speak your next <br className="hidden sm:block" />
+            <span className="text-amber-400">bestseller.</span>
+          </motion.h1>
+          
+          <motion.p 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+            className="text-lg sm:text-xl text-zinc-400 max-w-2xl mx-auto leading-relaxed"
+          >
+            Whisperbud translates your raw thoughts into beautifully structured book chapters, effortlessly categorizing your ideas as you speak.
+          </motion.p>
+          
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.3 }}
+            className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4"
+          >
+            <Link href={isSignedIn ? "/dashboard" : "/sign-up"} className="w-full sm:w-auto flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-400 text-stone-900 px-8 py-4 rounded-full font-semibold text-lg transition-all shadow-lg shadow-amber-500/25 hover:shadow-amber-500/40 hover:-translate-y-0.5">
+              Start Writing Free
+              <ArrowRight size={20} />
+            </Link>
+          </motion.div>
+        </section>
+
+        {/* Features Section */}
+        <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {[
+            {
+              icon: Mic,
+              title: "Frictionless Dictation",
+              desc: "Tap the mic and pour your thoughts out. Our AI accurately transcribes and structures your paragraphs instantly."
+            },
+            {
+              icon: Wand2,
+              title: "Smart Categorization",
+              desc: "Tag blocks as plot points, character ideas, or notes to investigate later. Keep your manuscript perfectly organized."
+            },
+            {
+              icon: BookOpen,
+              title: "One-Click Publishing",
+              desc: "Export your entire project directly to a professionally formatted Word (.docx) manuscript, ready for your editor."
+            }
+          ].map((feature, i) => (
+            <motion.div 
+              key={i}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5, delay: i * 0.1 }}
+              className="p-8 rounded-3xl bg-zinc-900/50 border border-zinc-800 backdrop-blur-sm hover:bg-zinc-800/50 transition-colors"
+            >
+              <div className="w-12 h-12 rounded-2xl bg-zinc-800 flex items-center justify-center mb-6">
+                <feature.icon className="text-amber-400" size={24} />
+              </div>
+              <h3 className="text-xl font-bold tracking-tight mb-3">{feature.title}</h3>
+              <p className="text-zinc-400 leading-relaxed">{feature.desc}</p>
+            </motion.div>
+          ))}
+        </section>
+
+        {/* Pricing Section */}
+        <section className="max-w-5xl mx-auto pt-10" id="pricing">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight mb-4">Simple, transparent pricing.</h2>
+            <p className="text-zinc-400">Choose the plan that fits your writing journey.</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+            {/* Free Tier */}
+            <motion.div 
+              initial={{ opacity: 0, x: -20 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              className="p-8 rounded-3xl bg-zinc-900/40 border border-zinc-800 flex flex-col"
+            >
+              <h3 className="text-xl font-medium text-zinc-300">Hobbyist</h3>
+              <div className="mt-4 mb-8 flex items-baseline gap-2">
+                <span className="text-5xl font-bold tracking-tight">$0</span>
+                <span className="text-zinc-500">/ forever</span>
+              </div>
+              <ul className="space-y-4 mb-8 flex-1 text-zinc-300">
+                {["Up to 3 book projects", "Standard AI transcription", "Basic text export", "Light & Dark modes"].map((item, i) => (
+                  <li key={i} className="flex items-center gap-3">
+                    <Check size={18} className="text-amber-500" />
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+              <Link href={isSignedIn ? "/dashboard" : "/sign-up"} className="w-full py-3 rounded-full border border-zinc-700 hover:bg-zinc-800 text-center font-medium transition-colors">
+                Get Started
+              </Link>
+            </motion.div>
+
+            {/* Pro Tier */}
+            <motion.div 
+              initial={{ opacity: 0, x: 20 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              className="relative p-8 rounded-3xl bg-gradient-to-b from-amber-500/10 to-zinc-900/80 border border-amber-500/30 flex flex-col"
+            >
+              <div className="absolute top-0 right-8 -translate-y-1/2 bg-amber-500 text-stone-900 px-3 py-1 rounded-full text-xs font-bold tracking-wider uppercase">
+                Most Popular
+              </div>
+              <h3 className="text-xl font-medium text-amber-400">Pro Author</h3>
+              <div className="mt-4 mb-8 flex items-baseline gap-2">
+                <span className="text-5xl font-bold tracking-tight text-white">$9</span>
+                <span className="text-zinc-400">/ month</span>
+              </div>
+              <ul className="space-y-4 mb-8 flex-1 text-zinc-100">
+                {["Unlimited book projects", "Advanced context-aware AI", "Premium .docx exports", "Priority email support", "Custom Note Types"].map((item, i) => (
+                  <li key={i} className="flex items-center gap-3">
+                    <Check size={18} className="text-amber-400" />
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+              <button className="w-full py-3 rounded-full bg-white text-black hover:bg-zinc-200 text-center font-bold transition-all shadow-lg shadow-white/10 hover:-translate-y-0.5">
+                Subscribe to Pro
+              </button>
+            </motion.div>
+          </div>
+        </section>
 
       </main>
+      
+      <footer className="border-t border-zinc-800/80 py-8 mt-20">
+        <div className="max-w-7xl mx-auto px-6 flex items-center justify-between text-sm text-zinc-500">
+          <p>© {new Date().getFullYear()} Whisperbud. All rights reserved.</p>
+          <div className="flex gap-4">
+            <Link href="#" className="hover:text-zinc-300 transition-colors">Privacy</Link>
+            <Link href="#" className="hover:text-zinc-300 transition-colors">Terms</Link>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

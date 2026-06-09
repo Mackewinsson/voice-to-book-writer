@@ -171,9 +171,7 @@ export default function ChapterList() {
 
       <header className={`sticky top-0 z-10 flex justify-between items-center p-4 sm:p-6 backdrop-blur-md ${isDarkMode ? "bg-[#0c0c0e]/85 border-b border-zinc-800/80" : "bg-[#f7f4ef]/85 border-b border-stone-200/80"}`}>
         <div className="flex items-center gap-3">
-          <Link
-            href="/"
-            className={`p-2 -ml-2 rounded-full transition-colors ${
+          <Link href="/dashboard" className={`p-2 -ml-2 rounded-full transition-colors ${
               isDarkMode ? "hover:bg-white/10 text-zinc-400 hover:text-zinc-200" : "hover:bg-black/5 text-stone-500 hover:text-stone-700"
             }`}
             aria-label="Back to Dashboard"

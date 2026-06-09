@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Voice-to-Book Writer",
+  title: "Whisperbud",
   description: "A minimalist mobile-first writing assistant",
 };
 

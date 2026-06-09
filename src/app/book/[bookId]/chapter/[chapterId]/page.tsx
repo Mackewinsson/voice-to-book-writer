@@ -327,12 +327,17 @@ export default function BookEditor() {
     if (isRecording) scrollToActive();
   }, [isRecording, scrollToActive]);
 
+  const hasAutoScrolled = useRef(false);
+
   useEffect(() => {
-    if (!isLoading) {
-      const timer = setTimeout(scrollToActive, 100);
-      return () => clearTimeout(timer);
+    if (!isLoading && !hasAutoScrolled.current) {
+      hasAutoScrolled.current = true;
+      if (blocks.length > 0) {
+        const timer = setTimeout(scrollToActive, 100);
+        return () => clearTimeout(timer);
+      }
     }
-  }, [isLoading, scrollToActive]);
+  }, [isLoading, blocks.length, scrollToActive]);
 
   const toggleDarkMode = () => {
     setIsDarkMode(!isDarkMode);

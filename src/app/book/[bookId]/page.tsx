@@ -33,6 +33,24 @@ export default function ChapterList() {
     await supabase.from("books").update({ title: finalTitle }).eq("id", bookId);
   };
 
+  const [editingChapterId, setEditingChapterId] = useState<string | null>(null);
+  const [editingChapterTitle, setEditingChapterTitle] = useState("");
+
+  const startEditingChapter = (e: React.MouseEvent, chapter: ChapterRecord) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setEditingChapterId(chapter.id);
+    setEditingChapterTitle(chapter.title);
+  };
+
+  const handleChapterTitleSave = async (chapterId: string) => {
+    const finalTitle = editingChapterTitle.trim() || "Untitled Chapter";
+    setChapters(chapters.map(c => c.id === chapterId ? { ...c, title: finalTitle } : c));
+    setEditingChapterId(null);
+    const supabase = createClient();
+    await supabase.from("chapters").update({ title: finalTitle }).eq("id", chapterId);
+  };
+
   useEffect(() => {
     async function fetchData() {
       if (!bookId || !isLoaded || !userId) return;
@@ -291,7 +309,27 @@ export default function ChapterList() {
                         {index + 1}
                       </div>
                       <div>
-                        <h3 className="font-medium text-lg tracking-tight line-clamp-1">{chapter.title}</h3>
+                        {editingChapterId === chapter.id ? (
+                          <input
+                            autoFocus
+                            value={editingChapterTitle}
+                            onChange={(e) => setEditingChapterTitle(e.target.value)}
+                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                            onBlur={() => handleChapterTitleSave(chapter.id)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" || e.key === "Escape") {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleChapterTitleSave(chapter.id);
+                              }
+                            }}
+                            className={`font-medium text-lg tracking-tight bg-transparent outline-none border-b border-dashed w-full ${
+                              isDarkMode ? "text-zinc-100 border-zinc-500" : "text-stone-900 border-stone-400"
+                            }`}
+                          />
+                        ) : (
+                          <h3 className="font-medium text-lg tracking-tight line-clamp-1">{chapter.title}</h3>
+                        )}
                         <div className="flex items-center gap-2 mt-0.5">
                           <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider ${isDarkMode ? "bg-zinc-800 text-zinc-400" : "bg-stone-200 text-stone-500"}`}>
                             {(chapter.word_count || 0).toLocaleString()} palabras
@@ -302,8 +340,12 @@ export default function ChapterList() {
                         </div>
                       </div>
                     </div>
-                    <button className={`p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all ${isDarkMode ? "hover:bg-zinc-700 text-zinc-400" : "hover:bg-stone-100 text-stone-400"}`}>
-                      <MoreVertical size={16} />
+                    <button 
+                      onClick={(e) => startEditingChapter(e, chapter)}
+                      className={`p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all ${isDarkMode ? "hover:bg-zinc-700 text-zinc-400" : "hover:bg-stone-100 text-stone-400"}`}
+                      title="Edit chapter name"
+                    >
+                      <Pencil size={16} />
                     </button>
                   </div>
                 </article>

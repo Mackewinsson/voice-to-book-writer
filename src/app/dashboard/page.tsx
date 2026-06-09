@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { createClient } from "@/utils/supabase/client";
-import { Loader2, Plus, Moon, Sun, Library, MoreVertical } from "lucide-react";
+import { Loader2, Plus, Moon, Sun, Library, Pencil } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { UserButton, useAuth } from "@clerk/nextjs";
 import Link from "next/link";
@@ -17,6 +17,24 @@ export default function Dashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
+  
+  const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
+  const [editingProjectTitle, setEditingProjectTitle] = useState("");
+
+  const startEditing = (e: React.MouseEvent, book: BookRecord) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setEditingProjectId(book.id);
+    setEditingProjectTitle(book.title);
+  };
+
+  const handleTitleSave = async (bookId: string) => {
+    const finalTitle = editingProjectTitle.trim() || "Untitled Draft";
+    setProjects(projects.map(p => p.id === bookId ? { ...p, title: finalTitle } : p));
+    setEditingProjectId(null);
+    const supabase = createClient();
+    await supabase.from("books").update({ title: finalTitle }).eq("id", bookId);
+  };
 
   useEffect(() => {
     async function fetchProjects() {
@@ -141,12 +159,36 @@ export default function Dashboard() {
                     <div className={`p-2 rounded-xl ${isDarkMode ? "bg-zinc-800" : "bg-stone-100 group-hover:bg-stone-200"} transition-colors`}>
                       <Library size={20} className={isDarkMode ? "text-zinc-400" : "text-stone-500"} />
                     </div>
-                    <button className={`p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all ${isDarkMode ? "hover:bg-zinc-700 text-zinc-400" : "hover:bg-stone-100 text-stone-400"}`}>
-                      <MoreVertical size={16} />
+                    <button 
+                      onClick={(e) => startEditing(e, book)}
+                      className={`p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all ${isDarkMode ? "hover:bg-zinc-700 text-zinc-400" : "hover:bg-stone-100 text-stone-400"}`}
+                      title="Edit project name"
+                    >
+                      <Pencil size={16} />
                     </button>
                   </div>
                   <div>
-                    <h3 className="font-medium text-lg tracking-tight line-clamp-1">{book.title}</h3>
+                    {editingProjectId === book.id ? (
+                      <input
+                        autoFocus
+                        value={editingProjectTitle}
+                        onChange={(e) => setEditingProjectTitle(e.target.value)}
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                        onBlur={() => handleTitleSave(book.id)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === "Escape") {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleTitleSave(book.id);
+                          }
+                        }}
+                        className={`font-medium text-lg tracking-tight bg-transparent outline-none border-b border-dashed w-full ${
+                          isDarkMode ? "text-zinc-100 border-zinc-500" : "text-stone-900 border-stone-400"
+                        }`}
+                      />
+                    ) : (
+                      <h3 className="font-medium text-lg tracking-tight line-clamp-1">{book.title}</h3>
+                    )}
                     <div className="flex items-center gap-2 mt-1">
                       <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${isDarkMode ? "bg-zinc-800 text-zinc-300" : "bg-stone-200 text-stone-700"}`}>
                         {(book.word_count || 0).toLocaleString()} palabras

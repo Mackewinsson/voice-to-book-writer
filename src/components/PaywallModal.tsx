@@ -11,7 +11,25 @@ interface Props {
 export default function PaywallModal({ isOpen, onClose, onKeySaved }: Props) {
   const [apiKey, setApiKey] = useState("");
   const [saving, setSaving] = useState(false);
+  const [checkingOut, setCheckingOut] = useState(false);
 
+  const handleCheckout = async () => {
+    setCheckingOut(true);
+    try {
+      const res = await fetch("/api/checkout", { method: "POST" });
+      const data = await res.json();
+      if (data.checkoutUrl) {
+        window.location.href = data.checkoutUrl;
+      } else {
+        console.error(data.error);
+        alert("Error iniciando la compra: " + (data.error || "Desconocido"));
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setCheckingOut(false);
+    }
+  };
   const handleSaveKey = async () => {
     if (!apiKey) return;
     setSaving(true);
@@ -66,8 +84,12 @@ export default function PaywallModal({ isOpen, onClose, onKeySaved }: Props) {
                 <p className="text-sm text-zinc-300 mb-4">
                   Desbloquea la app con un pago único de 29€ y obtén 10 horas de dictado. Sin suscripciones.
                 </p>
-                <button className="w-full py-3 rounded-full bg-white text-black hover:bg-zinc-200 font-bold transition-all shadow-lg">
-                  Comprar por 29€
+                <button 
+                  onClick={handleCheckout}
+                  disabled={checkingOut}
+                  className="w-full py-3 rounded-full bg-white text-black hover:bg-zinc-200 font-bold transition-all shadow-lg disabled:opacity-50"
+                >
+                  {checkingOut ? "Cargando..." : "Comprar por 29€"}
                 </button>
               </div>
 

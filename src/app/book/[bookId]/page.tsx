@@ -2,10 +2,11 @@
 
 import { useState, useEffect, useRef } from "react";
 import { createClient } from "@/utils/supabase/client";
-import { Loader2, Plus, Moon, Sun, ChevronLeft, FileText, MoreVertical, Download, Pencil } from "lucide-react";
+import { Loader2, Plus, Moon, Sun, ChevronLeft, FileText, Download, Pencil, Trash2 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { UserButton, useAuth } from "@clerk/nextjs";
 import Link from "next/link";
+import ConfirmModal from "@/components/ConfirmModal";
 
 type BookRecord = { id: string; title: string };
 type ChapterRecord = { id: string; title: string; created_at: string; word_count?: number };
@@ -49,6 +50,23 @@ export default function ChapterList() {
     setEditingChapterId(null);
     const supabase = createClient();
     await supabase.from("chapters").update({ title: finalTitle }).eq("id", chapterId);
+  };
+
+  const [chapterToDelete, setChapterToDelete] = useState<ChapterRecord | null>(null);
+  const [isDeletingChapter, setIsDeletingChapter] = useState(false);
+
+  const handleDeleteChapter = async () => {
+    if (!chapterToDelete) return;
+    setIsDeletingChapter(true);
+    const supabase = createClient();
+    
+    // Manually cascade delete blocks first
+    await supabase.from("blocks").delete().eq("chapter_id", chapterToDelete.id);
+    await supabase.from("chapters").delete().eq("id", chapterToDelete.id);
+    
+    setChapters(chapters.filter(c => c.id !== chapterToDelete.id));
+    setChapterToDelete(null);
+    setIsDeletingChapter(false);
   };
 
   useEffect(() => {
@@ -340,13 +358,26 @@ export default function ChapterList() {
                         </div>
                       </div>
                     </div>
-                    <button 
-                      onClick={(e) => startEditingChapter(e, chapter)}
-                      className={`p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all ${isDarkMode ? "hover:bg-zinc-700 text-zinc-400" : "hover:bg-stone-100 text-stone-400"}`}
-                      title="Edit chapter name"
-                    >
-                      <Pencil size={16} />
-                    </button>
+                    <div className="flex gap-1">
+                      <button 
+                        onClick={(e) => startEditingChapter(e, chapter)}
+                        className={`p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all ${isDarkMode ? "hover:bg-zinc-700 text-zinc-400" : "hover:bg-stone-100 text-stone-400"}`}
+                        title="Edit chapter name"
+                      >
+                        <Pencil size={16} />
+                      </button>
+                      <button 
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setChapterToDelete(chapter);
+                        }}
+                        className={`p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all ${isDarkMode ? "hover:bg-red-500/20 text-red-400" : "hover:bg-red-50 text-red-500"}`}
+                        title="Delete chapter"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
                   </div>
                 </article>
               </Link>
@@ -355,6 +386,16 @@ export default function ChapterList() {
         )}
 
       </main>
+
+      <ConfirmModal
+        isOpen={!!chapterToDelete}
+        title="Delete Chapter"
+        description={`Are you sure you want to delete "${chapterToDelete?.title}"? All text blocks inside it will be permanently lost. This action cannot be undone.`}
+        isDarkMode={isDarkMode}
+        isLoading={isDeletingChapter}
+        onConfirm={handleDeleteChapter}
+        onCancel={() => setChapterToDelete(null)}
+      />
     </div>
   );
 }

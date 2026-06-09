@@ -2,10 +2,11 @@
 
 import { useState, useEffect } from "react";
 import { createClient } from "@/utils/supabase/client";
-import { Loader2, Plus, Moon, Sun, Library, Pencil } from "lucide-react";
+import { Loader2, Plus, Moon, Sun, Library, Pencil, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { UserButton, useAuth } from "@clerk/nextjs";
 import Link from "next/link";
+import ConfirmModal from "@/components/ConfirmModal";
 
 type BookRecord = { id: string; title: string; created_at: string; word_count?: number };
 
@@ -34,6 +35,29 @@ export default function Dashboard() {
     setEditingProjectId(null);
     const supabase = createClient();
     await supabase.from("books").update({ title: finalTitle }).eq("id", bookId);
+  };
+
+  const [projectToDelete, setProjectToDelete] = useState<BookRecord | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleDeleteProject = async () => {
+    if (!projectToDelete) return;
+    setIsDeleting(true);
+    const supabase = createClient();
+    
+    // Manually cascade delete to ensure no foreign key errors
+    const { data: chapters } = await supabase.from("chapters").select("id").eq("book_id", projectToDelete.id);
+    if (chapters && chapters.length > 0) {
+      const chapterIds = chapters.map(c => c.id);
+      await supabase.from("blocks").delete().in("chapter_id", chapterIds);
+      await supabase.from("chapters").delete().in("id", chapterIds);
+    }
+    
+    await supabase.from("books").delete().eq("id", projectToDelete.id);
+    
+    setProjects(projects.filter(p => p.id !== projectToDelete.id));
+    setProjectToDelete(null);
+    setIsDeleting(false);
   };
 
   useEffect(() => {
@@ -159,13 +183,26 @@ export default function Dashboard() {
                     <div className={`p-2 rounded-xl ${isDarkMode ? "bg-zinc-800" : "bg-stone-100 group-hover:bg-stone-200"} transition-colors`}>
                       <Library size={20} className={isDarkMode ? "text-zinc-400" : "text-stone-500"} />
                     </div>
-                    <button 
-                      onClick={(e) => startEditing(e, book)}
-                      className={`p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all ${isDarkMode ? "hover:bg-zinc-700 text-zinc-400" : "hover:bg-stone-100 text-stone-400"}`}
-                      title="Edit project name"
-                    >
-                      <Pencil size={16} />
-                    </button>
+                    <div className="flex gap-1">
+                      <button 
+                        onClick={(e) => startEditing(e, book)}
+                        className={`p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all ${isDarkMode ? "hover:bg-zinc-700 text-zinc-400" : "hover:bg-stone-100 text-stone-400"}`}
+                        title="Edit project name"
+                      >
+                        <Pencil size={16} />
+                      </button>
+                      <button 
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setProjectToDelete(book);
+                        }}
+                        className={`p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all ${isDarkMode ? "hover:bg-red-500/20 text-red-400" : "hover:bg-red-50 text-red-500"}`}
+                        title="Delete project"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
                   </div>
                   <div>
                     {editingProjectId === book.id ? (
@@ -205,6 +242,16 @@ export default function Dashboard() {
         )}
 
       </main>
+
+      <ConfirmModal
+        isOpen={!!projectToDelete}
+        title="Delete Project"
+        description={`Are you sure you want to delete "${projectToDelete?.title}"? All chapters and text blocks inside it will be permanently lost. This action cannot be undone.`}
+        isDarkMode={isDarkMode}
+        isLoading={isDeleting}
+        onConfirm={handleDeleteProject}
+        onCancel={() => setProjectToDelete(null)}
+      />
     </div>
   );
 }

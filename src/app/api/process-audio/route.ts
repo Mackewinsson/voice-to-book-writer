@@ -1,9 +1,24 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextResponse } from "next/server";
 
-// Initialize Gemini API
 const apiKey = process.env.GEMINI_API_KEY || "";
 const genAI = new GoogleGenerativeAI(apiKey);
+
+const NO_SPEECH_PATTERNS = [
+  /^\[?\s*silence\s*\]?$/i,
+  /^no\s+(speech|words|audio|sound)/i,
+  /^\(?no\s+speech\)?$/i,
+  /^nothing\s+(was\s+)?(said|spoken|detected)/i,
+  /^(i\s+)?(cannot|can't)\s+(hear|detect|make out)/i,
+  /^the\s+audio\s+(is|was)\s+silent/i,
+  /^empty\s+audio$/i,
+];
+
+function isEmptyTranscription(text: string): boolean {
+  const trimmed = text.trim();
+  if (!trimmed) return true;
+  return NO_SPEECH_PATTERNS.some((pattern) => pattern.test(trimmed));
+}
 
 export async function POST(req: Request) {
   if (!apiKey) {
@@ -16,7 +31,6 @@ export async function POST(req: Request) {
   try {
     const formData = await req.formData();
     const audioFile = formData.get("audio") as File;
-    const contextStr = formData.get("context") as string;
 
     if (!audioFile) {
       return NextResponse.json(
@@ -25,21 +39,21 @@ export async function POST(req: Request) {
       );
     }
 
+    if (audioFile.size === 0) {
+      return NextResponse.json({ text: "", empty: true });
+    }
+
     // Convert audio file to base64
     const audioBuffer = await audioFile.arrayBuffer();
     const base64Audio = Buffer.from(audioBuffer).toString("base64");
 
-    // We use gemini-1.5-flash as it's fast, multimodal, and cheap/free
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
-    const prompt = `You are an expert ghostwriter. The user is writing a book using their voice.
-Below is the recent context of the chapter (if any).
-Please listen to the attached audio, transcribe what the user said, and seamlessly continue the narrative from the previous context.
-Refine the transcription into well-written, polished paragraphs. Maintain a consistent voice, fix any grammar, and do not add any meta-commentary.
-Return ONLY the refined text for the new block.
-
-PREVIOUS CONTEXT:
-${contextStr || "No previous context. This is the start of the chapter."}`;
+    const prompt = `Listen to the attached audio and return a verbatim transcription of what was spoken.
+Preserve natural punctuation and paragraph breaks only where the speaker pauses.
+Do not rewrite, summarize, add content, or change the meaning.
+If the audio is silent or contains no intelligible spoken words, return an empty response with no explanation.
+Return only the transcribed text.`;
 
     const result = await model.generateContent([
       {
@@ -51,7 +65,11 @@ ${contextStr || "No previous context. This is the start of the chapter."}`;
       prompt,
     ]);
 
-    const responseText = result.response.text();
+    const responseText = result.response.text().trim();
+
+    if (isEmptyTranscription(responseText)) {
+      return NextResponse.json({ text: "", empty: true });
+    }
 
     return NextResponse.json({ text: responseText });
   } catch (error) {

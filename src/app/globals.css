@@ -22,5 +22,34 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+}
+
+@keyframes block-enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes block-highlight {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+  30% {
+    box-shadow: 0 0 0 2px color-mix(in srgb, #d97706 35%, transparent);
+  }
+}
+
+.block-enter {
+  animation: block-enter 0.45s ease-out both;
+}
+
+.block-highlight {
+  animation: block-highlight 2s ease-out;
 }

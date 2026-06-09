@@ -590,7 +590,7 @@ export default function BookEditor() {
   }, [isProcessing, isLoading, chapterId]);
 
   const wordCount = blocks.reduce((acc, block) => {
-    const text = (block.content || block.text || "").trim();
+    const text = (block.text || "").trim();
     if (!text) return acc;
     return acc + text.split(/\s+/).length;
   }, 0);

@@ -7,7 +7,7 @@ import {
   useLayoutEffect,
   useCallback,
 } from "react";
-import { Mic, Moon, Sun, MoreHorizontal, Loader2, Pencil, Lock, Bookmark, User, Compass, Sparkles, ChevronLeft, ClipboardPaste, Copy, Check, Trash2 } from "lucide-react";
+import { Mic, Moon, Sun, MoreHorizontal, Loader2, Pencil, Lock, Bookmark, User, Compass, Sparkles, ChevronLeft, ClipboardPaste, Copy, Check, Trash2, Bot } from "lucide-react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { UserButton, useAuth } from "@clerk/nextjs";
@@ -211,13 +211,16 @@ Please act as an expert researcher and author assistant. Conduct a deep, compreh
               onClick={handleCopyPrompt}
               aria-label="Copy prompt for AI"
               title="Copy prompt for AI investigation"
-              className={`rounded-lg p-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 focus:opacity-100 transition-all ${
+              className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 focus:opacity-100 transition-all text-xs font-medium border ${
                 isCopied 
-                  ? "text-green-500 bg-green-500/10" 
-                  : actionBtnClass
+                  ? "text-green-500 bg-green-500/10 border-green-500/20" 
+                  : isDarkMode
+                    ? "text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 border-amber-500/20"
+                    : "text-amber-700 bg-amber-50 hover:bg-amber-100 border-amber-200"
               }`}
             >
-              {isCopied ? <Check size={15} strokeWidth={1.75} /> : <Copy size={15} strokeWidth={1.75} />}
+              {isCopied ? <Check size={14} strokeWidth={2} /> : <Bot size={14} strokeWidth={2} />}
+              {isCopied ? "Copied!" : "Ask AI"}
             </button>
           )}
           <button

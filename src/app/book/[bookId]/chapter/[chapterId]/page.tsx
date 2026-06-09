@@ -428,6 +428,14 @@ export default function BookEditor() {
 
   const handleBlockSave = async (id: string, newText: string, note_type?: string) => {
     const supabase = createClient();
+    
+    if (newText.trim() === "") {
+      // Auto-delete if empty
+      await supabase.from("blocks").delete().eq("id", id);
+      setBlocks((prev) => prev.filter((b) => b.id !== id));
+      return;
+    }
+
     const updatePayload: any = { content: newText };
     if (note_type) updatePayload.note_type = note_type;
     await supabase.from("blocks").update(updatePayload).eq("id", id);

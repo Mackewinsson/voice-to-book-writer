@@ -125,8 +125,8 @@ export default function LandingPage() {
         {/* Pricing Section */}
         <section className="max-w-5xl mx-auto pt-10" id="pricing">
           <div className="text-center mb-16">
-            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight mb-4">Simple, transparent pricing.</h2>
-            <p className="text-zinc-400">Choose the plan that fits your writing journey.</p>
+            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight mb-4">Empieza a dictar sin compromiso.</h2>
+            <p className="text-zinc-400">Prueba la magia gratis, y paga solo lo que necesitas después.</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
@@ -137,21 +137,18 @@ export default function LandingPage() {
               viewport={{ once: true }}
               className="p-8 rounded-3xl bg-zinc-900/40 border border-zinc-800 flex flex-col"
             >
-              <h3 className="text-xl font-medium text-zinc-300">Hobbyist</h3>
+              <h3 className="text-xl font-medium text-zinc-300">Empieza a dictar</h3>
               <div className="mt-4 mb-8 flex items-baseline gap-2">
                 <span className="text-5xl font-bold tracking-tight">$0</span>
-                <span className="text-zinc-500">/ forever</span>
               </div>
               <ul className="space-y-4 mb-8 flex-1 text-zinc-300">
-                {["Up to 3 book projects", "Standard AI transcription", "Basic text export", "Light & Dark modes"].map((item, i) => (
-                  <li key={i} className="flex items-center gap-3">
-                    <Check size={18} className="text-amber-500" />
-                    <span>{item}</span>
-                  </li>
-                ))}
+                <li className="flex items-start gap-3">
+                  <Check size={18} className="text-amber-500 mt-1 shrink-0" />
+                  <span>Tienes 15 minutos de grabación 100% gratis nada más registrarte para que pruebes la magia.</span>
+                </li>
               </ul>
-              <Link href={isSignedIn ? "/dashboard" : "/sign-up"} className="w-full py-3 rounded-full border border-zinc-700 hover:bg-zinc-800 text-center font-medium transition-colors">
-                Get Started
+              <Link href={isSignedIn ? "/dashboard" : "/sign-up"} className="w-full py-3 rounded-full border border-zinc-700 hover:bg-zinc-800 text-center font-medium transition-colors mt-auto">
+                Empezar gratis
               </Link>
             </motion.div>
 
@@ -163,24 +160,20 @@ export default function LandingPage() {
               className="relative p-8 rounded-3xl bg-gradient-to-b from-amber-500/10 to-zinc-900/80 border border-amber-500/30 flex flex-col"
             >
               <div className="absolute top-0 right-8 -translate-y-1/2 bg-amber-500 text-stone-900 px-3 py-1 rounded-full text-xs font-bold tracking-wider uppercase">
-                Most Popular
+                Sin suscripciones trampa
               </div>
-              <h3 className="text-xl font-medium text-amber-400">Pro Author</h3>
-              <div className="mt-4 mb-8 flex items-baseline gap-2">
-                <span className="text-5xl font-bold tracking-tight text-white">$9</span>
-                <span className="text-zinc-400">/ month</span>
-              </div>
-              <ul className="space-y-4 mb-8 flex-1 text-zinc-100">
-                {["Unlimited book projects", "Advanced context-aware AI", "Premium .docx exports", "Priority email support", "Custom Note Types"].map((item, i) => (
-                  <li key={i} className="flex items-center gap-3">
-                    <Check size={18} className="text-amber-400" />
-                    <span>{item}</span>
-                  </li>
-                ))}
+              <h3 className="text-xl font-medium text-amber-400">Cuando se acabe la prueba, tú decides.</h3>
+              
+              <ul className="space-y-4 mb-8 mt-6 flex-1 text-zinc-100">
+                <li className="flex items-start gap-3">
+                  <Check size={18} className="text-amber-400 mt-1 shrink-0" />
+                  <span>Puedes hacer un pago único para recargar horas.</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <Check size={18} className="text-amber-400 mt-1 shrink-0" />
+                  <span>O si eres un usuario avanzado, poner tu propia API Key de Google Gemini y pagarle directamente a ellos solo los céntimos que consumas.</span>
+                </li>
               </ul>
-              <button className="w-full py-3 rounded-full bg-white text-black hover:bg-zinc-200 text-center font-bold transition-all shadow-lg shadow-white/10 hover:-translate-y-0.5">
-                Subscribe to Pro
-              </button>
             </motion.div>
           </div>
         </section>

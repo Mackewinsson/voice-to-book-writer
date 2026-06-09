@@ -8,7 +8,7 @@ import { UserButton, useAuth } from "@clerk/nextjs";
 import Link from "next/link";
 
 type BookRecord = { id: string; title: string };
-type ChapterRecord = { id: string; title: string; created_at: string };
+type ChapterRecord = { id: string; title: string; created_at: string; word_count?: number };
 
 export default function ChapterList() {
   const router = useRouter();
@@ -31,8 +31,14 @@ export default function ChapterList() {
       const { data: bookData } = await supabase.from("books").select("*").eq("id", bookId).eq("user_id", userId).single();
       if (bookData) setBook(bookData);
 
+      const { data: countsData } = await supabase.rpc("get_chapter_word_counts", { book_uuid: bookId });
+      const countsMap = new Map();
+      if (countsData) {
+        countsData.forEach((row: any) => countsMap.set(row.chapter_id, row.word_count));
+      }
+
       const { data: chaptersData } = await supabase.from("chapters").select("*").eq("book_id", bookId).order("created_at", { ascending: true });
-      if (chaptersData) setChapters(chaptersData);
+      if (chaptersData) setChapters(chaptersData.map(c => ({ ...c, word_count: countsMap.get(c.id) || 0 })));
 
       setIsLoading(false);
     }
@@ -253,9 +259,14 @@ export default function ChapterList() {
                       </div>
                       <div>
                         <h3 className="font-medium text-lg tracking-tight line-clamp-1">{chapter.title}</h3>
-                        <p className={`text-xs mt-0.5 ${isDarkMode ? "text-zinc-500" : "text-stone-500"}`}>
-                          {new Date(chapter.created_at).toLocaleDateString()}
-                        </p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider ${isDarkMode ? "bg-zinc-800 text-zinc-400" : "bg-stone-200 text-stone-500"}`}>
+                            {(chapter.word_count || 0).toLocaleString()} palabras
+                          </span>
+                          <p className={`text-xs ${isDarkMode ? "text-zinc-500" : "text-stone-500"}`}>
+                            {new Date(chapter.created_at).toLocaleDateString()}
+                          </p>
+                        </div>
                       </div>
                     </div>
                     <button className={`p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all ${isDarkMode ? "hover:bg-zinc-700 text-zinc-400" : "hover:bg-stone-100 text-stone-400"}`}>

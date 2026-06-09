@@ -12,6 +12,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { UserButton, useAuth } from "@clerk/nextjs";
 import { createClient } from "@/utils/supabase/client";
+import PaywallModal from "@/components/PaywallModal";
 
 type Block = { id: string; text: string; note_type?: string };
 
@@ -24,22 +25,24 @@ const NOTE_TYPES = [
 ];
 
 function TranscriptionSkeleton({ isDarkMode }: { isDarkMode: boolean }) {
-  const barClass = isDarkMode ? "bg-zinc-700" : "bg-stone-200";
+  const barClass = isDarkMode ? "bg-zinc-700/50" : "bg-stone-200";
   const cardClass = isDarkMode
-    ? "bg-zinc-900/60 border-zinc-700"
-    : "bg-white/80 border-stone-200";
-  const labelClass = isDarkMode ? "text-zinc-400" : "text-stone-500";
+    ? "bg-zinc-900/70 border-zinc-700/80"
+    : "bg-white/90 border-stone-200/90 shadow-sm shadow-stone-200/40";
+  const labelClass = isDarkMode ? "text-zinc-500" : "text-stone-400";
 
   return (
-    <div
-      className={`rounded-xl border p-4 space-y-3 animate-pulse ${cardClass}`}
+    <article
+      className={`relative rounded-xl border p-4 pr-12 transition-colors ${cardClass} w-full backdrop-blur-md`}
     >
-      <p className={`text-sm italic ${labelClass}`}>Transcribing...</p>
-      <div className={`h-4 rounded ${barClass} w-full`} />
-      <div className={`h-4 rounded ${barClass} w-5/6`} />
-      <div className={`h-4 rounded ${barClass} w-4/5`} />
-      <div className={`h-4 rounded ${barClass} w-2/3`} />
-    </div>
+      <div className="animate-pulse space-y-3">
+        <p className={`text-sm italic ${labelClass} mb-2`}>Transcribiendo...</p>
+        <div className={`h-4 rounded ${barClass} w-full`} />
+        <div className={`h-4 rounded ${barClass} w-5/6`} />
+        <div className={`h-4 rounded ${barClass} w-4/5`} />
+        <div className={`h-4 rounded ${barClass} w-2/3`} />
+      </div>
+    </article>
   );
 }
 
@@ -211,6 +214,8 @@ export default function BookEditor() {
   const [editingBlockId, setEditingBlockId] = useState<string | null>(null);
   const [highlightBlockId, setHighlightBlockId] = useState<string | null>(null);
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
+  const [profile, setProfile] = useState<{ free_seconds_remaining: number; gemini_api_key?: string } | null>(null);
+  const [isPaywallOpen, setIsPaywallOpen] = useState(false);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<BlobPart[]>([]);
@@ -310,6 +315,12 @@ export default function BookEditor() {
             }))
           );
         }
+
+        const profileRes = await fetch("/api/profile");
+        if (profileRes.ok) {
+          const profileData = await profileRes.json();
+          if (profileData.profile) setProfile(profileData.profile);
+        }
       } catch (err) {
         console.error("Unexpected error in loadData:", err);
       } finally {
@@ -398,6 +409,11 @@ export default function BookEditor() {
   };
 
   const startRecording = async () => {
+    if (profile && profile.free_seconds_remaining <= 0 && !profile.gemini_api_key) {
+      setIsPaywallOpen(true);
+      return;
+    }
+
     if (editingBlockId) {
       const block = blocks.find((b) => b.id === editingBlockId);
       if (block) await handleBlockSave(editingBlockId, block.text);
@@ -441,7 +457,7 @@ export default function BookEditor() {
           return;
         }
 
-        await processAudio(audioBlob);
+        await processAudio(audioBlob, durationMs);
       };
 
       recordingStartedAtRef.current = Date.now();
@@ -463,11 +479,15 @@ export default function BookEditor() {
     }
   };
 
-  const processAudio = async (audioBlob: Blob) => {
+  const processAudio = async (audioBlob: Blob, durationMs: number = 0) => {
     setIsProcessing(true);
     try {
       const formData = new FormData();
       formData.append("audio", audioBlob, "recording.webm");
+      formData.append("durationSeconds", Math.ceil(durationMs / 1000).toString());
+      // Only send the last block to keep context small
+      const contextBlocks = blocks.slice(-1).map(b => b.text).join("\n\n");
+      formData.append("context", contextBlocks);
 
       const response = await fetch("/api/process-audio", {
         method: "POST",
@@ -489,7 +509,7 @@ export default function BookEditor() {
       const newText = typeof data.text === "string" ? data.text.trim() : "";
 
       if (data.empty || !newText) {
-        showFeedback("No speech detected. Tap the mic and try again.");
+        showFeedback("No se ha detectado voz. Toca el micro e inténtalo de nuevo.");
         return;
       }
 
@@ -515,6 +535,11 @@ export default function BookEditor() {
           appendBlock(newBlock.id, newBlock.content);
         }
       }
+
+      setProfile(prev => {
+        if (!prev || prev.gemini_api_key) return prev;
+        return { ...prev, free_seconds_remaining: Math.max(0, prev.free_seconds_remaining - Math.ceil(durationMs / 1000)) };
+      });
     } catch (error: unknown) {
       console.error("Error:", error);
       const message =
@@ -534,6 +559,41 @@ export default function BookEditor() {
       startRecording();
     }
   };
+
+  const handleRecordClickRef = useRef(handleRecordClick);
+  useEffect(() => {
+    handleRecordClickRef.current = handleRecordClick;
+  });
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === " ") {
+        const target = e.target as HTMLElement;
+        if (
+          target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.tagName === "BUTTON" ||
+          target.isContentEditable
+        ) {
+          return;
+        }
+
+        e.preventDefault();
+        if (!isProcessing && !isLoading && chapterId) {
+          handleRecordClickRef.current();
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isProcessing, isLoading, chapterId]);
+
+  const wordCount = blocks.reduce((acc, block) => {
+    const text = (block.content || block.text || "").trim();
+    if (!text) return acc;
+    return acc + text.split(/\s+/).length;
+  }, 0);
 
   return (
     <div
@@ -599,32 +659,37 @@ export default function BookEditor() {
               </p>
             )}
             
-            {isEditingChapter ? (
-              <input
-                ref={chapterInputRef}
-                value={chapterTitle}
-                onChange={(e) => setChapterTitle(e.target.value)}
-                onBlur={() => handleChapterTitleSave(chapterTitle)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === "Escape") {
-                    handleChapterTitleSave(chapterTitle);
-                  }
-                }}
-                className={`text-xl font-medium tracking-tight mt-0.5 bg-transparent outline-none border-b border-dashed ${
-                  isDarkMode ? "text-zinc-100 border-zinc-500" : "text-stone-900 border-stone-400"
-                } w-40 sm:w-auto`}
-                autoFocus
-              />
-            ) : (
-              <h1
-                onClick={() => setIsEditingChapter(true)}
-                className="text-xl font-medium tracking-tight mt-0.5 cursor-pointer hover:opacity-70 transition-opacity flex items-center gap-1.5 group"
-                title="Click to edit chapter name"
-              >
-                {chapterTitle || "Untitled Chapter"}
-                <Pencil size={14} className="opacity-0 group-hover:opacity-50 transition-opacity" />
-              </h1>
-            )}
+            <div className="flex items-center gap-3">
+              {isEditingChapter ? (
+                <input
+                  ref={chapterInputRef}
+                  value={chapterTitle}
+                  onChange={(e) => setChapterTitle(e.target.value)}
+                  onBlur={() => handleChapterTitleSave(chapterTitle)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === "Escape") {
+                      handleChapterTitleSave(chapterTitle);
+                    }
+                  }}
+                  className={`text-xl font-medium tracking-tight mt-0.5 bg-transparent outline-none border-b border-dashed ${
+                    isDarkMode ? "text-zinc-100 border-zinc-500" : "text-stone-900 border-stone-400"
+                  } w-40 sm:w-auto`}
+                  autoFocus
+                />
+              ) : (
+                <h1
+                  onClick={() => setIsEditingChapter(true)}
+                  className="text-xl font-medium tracking-tight mt-0.5 cursor-pointer hover:opacity-70 transition-opacity flex items-center gap-1.5 group"
+                  title="Click to edit chapter name"
+                >
+                  {chapterTitle || "Untitled Chapter"}
+                  <Pencil size={14} className="opacity-0 group-hover:opacity-50 transition-opacity" />
+                </h1>
+              )}
+              <span className={`mt-0.5 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${isDarkMode ? "bg-zinc-800 text-zinc-400" : "bg-stone-200 text-stone-500"}`}>
+                {wordCount.toLocaleString()} palabras
+              </span>
+            </div>
           </div>
         </div>
         <div className="flex gap-4 items-center">
@@ -687,91 +752,117 @@ export default function BookEditor() {
           </div>
         ))}
 
-        {isRecording && (
-          <div
-            className={`rounded-xl border border-dashed px-4 py-5 flex gap-3 items-center ${
-              isDarkMode
-                ? "border-red-500/30 bg-red-500/5"
-                : "border-red-400/40 bg-red-50/60"
-            }`}
-          >
-            <div className="flex gap-1.5">
-              <div
-                className="w-2 h-2 rounded-full bg-red-500 animate-bounce"
-                style={{ animationDelay: "0ms" }}
-              />
-              <div
-                className="w-2 h-2 rounded-full bg-red-500 animate-bounce"
-                style={{ animationDelay: "150ms" }}
-              />
-              <div
-                className="w-2 h-2 rounded-full bg-red-500 animate-bounce"
-                style={{ animationDelay: "300ms" }}
-              />
-            </div>
-            <span
-              className={`text-sm ${
-                isDarkMode ? "text-red-300/80" : "text-red-600/80"
-              }`}
-            >
-              Listening…
-            </span>
-          </div>
-        )}
-
-        {isProcessing && <TranscriptionSkeleton isDarkMode={isDarkMode} />}
-
-        <div className="flex flex-col items-center gap-4 mt-8 pb-8 transition-all">
-          {feedbackMessage ? (
-            <p
-              role="status"
-              className={`text-sm text-center px-4 ${
-                isDarkMode ? "text-amber-300/90" : "text-amber-700"
-              }`}
-            >
-              {feedbackMessage}
-            </p>
-          ) : !isRecording && !isProcessing && blocks.length > 0 ? (
-            <p
-              className={`text-xs tracking-wide ${
-                isDarkMode ? "text-zinc-500" : "text-stone-500"
-              }`}
-            >
-              Tap mic for the next paragraph
-            </p>
-          ) : null}
-          <button
-            onClick={handleRecordClick}
-            disabled={isProcessing || isLoading || !chapterId}
-            className={`relative flex items-center justify-center w-20 h-20 rounded-full shadow-lg transition-all duration-300 ease-out hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100 ${
-              isRecording
-                ? "bg-red-500 shadow-red-500/30 ring-4 ring-red-500/20"
-                : isDarkMode
-                  ? "bg-zinc-100 text-zinc-900 hover:bg-white shadow-zinc-900/20"
-                  : "bg-stone-900 text-stone-50 hover:bg-black shadow-stone-900/25"
-            }`}
-          >
-            {isRecording && (
-              <div className="absolute inset-0 rounded-full animate-ping opacity-20 bg-red-400" />
-            )}
-
-            {isProcessing ? (
-              <Loader2
-                size={32}
-                className={`animate-spin ${isDarkMode ? "text-zinc-900" : "text-white"}`}
-              />
-            ) : (
-              <Mic
-                size={32}
-                className={`transition-colors duration-200 ${isRecording ? "text-white" : ""}`}
-              />
-            )}
-          </button>
-        </div>
-
-        <div ref={bottomAnchorRef} className="h-1" aria-hidden />
+        <div ref={bottomAnchorRef} className="h-40" aria-hidden />
       </main>
 
+      <div className="fixed bottom-12 left-0 right-0 z-20 pointer-events-none flex justify-center">
+        <div className="pointer-events-auto flex flex-col items-center space-y-4 w-full max-w-2xl px-4">
+          {isRecording && (
+            <div
+              className={`rounded-xl border border-dashed px-4 py-5 flex gap-3 items-center shadow-lg ${
+                isDarkMode
+                  ? "border-red-500/30 bg-red-500/10 backdrop-blur-md"
+                  : "border-red-400/40 bg-red-50/80 backdrop-blur-md"
+              }`}
+            >
+              <div className="flex gap-1.5">
+                <div
+                  className="w-2 h-2 rounded-full bg-red-500 animate-bounce"
+                  style={{ animationDelay: "0ms" }}
+                />
+                <div
+                  className="w-2 h-2 rounded-full bg-red-500 animate-bounce"
+                  style={{ animationDelay: "150ms" }}
+                />
+                <div
+                  className="w-2 h-2 rounded-full bg-red-500 animate-bounce"
+                  style={{ animationDelay: "300ms" }}
+                />
+              </div>
+              <span
+                className={`text-sm font-medium ${
+                  isDarkMode ? "text-red-300" : "text-red-600"
+                }`}
+              >
+                Escuchando…
+              </span>
+            </div>
+          )}
+
+          {isProcessing && (
+            <div className="w-full">
+              <TranscriptionSkeleton isDarkMode={isDarkMode} />
+            </div>
+          )}
+
+          <div className="flex flex-col items-center gap-4 transition-all">
+            {feedbackMessage ? (
+              <p
+                role="status"
+                className={`text-sm text-center px-4 font-medium backdrop-blur-md py-1 rounded-full ${
+                  isDarkMode ? "text-amber-300 bg-black/20" : "text-amber-700 bg-white/50"
+                }`}
+              >
+                {feedbackMessage}
+              </p>
+            ) : !isRecording && !isProcessing && blocks.length > 0 ? (
+              <p
+                className={`text-xs tracking-wide font-medium backdrop-blur-md px-3 py-1 rounded-full ${
+                  isDarkMode ? "text-zinc-400 bg-black/20" : "text-stone-500 bg-white/50"
+                }`}
+              >
+                Toca el micro o presiona Espacio
+              </p>
+            ) : null}
+
+            {profile && !profile.gemini_api_key && (
+              <div className={`text-xs font-medium px-3 py-1 rounded-full border shadow-sm backdrop-blur-md ${
+                profile.free_seconds_remaining > 0 
+                  ? "bg-amber-500/10 text-amber-500 border-amber-500/20" 
+                  : "bg-red-500/10 text-red-500 border-red-500/20"
+              }`}>
+                {Math.floor(profile.free_seconds_remaining / 60)}:{Math.floor(profile.free_seconds_remaining % 60).toString().padStart(2, '0')} gratis restantes
+              </div>
+            )}
+
+            <button
+              onClick={handleRecordClick}
+              disabled={isProcessing || isLoading || !chapterId}
+              className={`relative flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 rounded-full shadow-2xl transition-all duration-300 ease-out hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100 ${
+                isRecording
+                  ? "bg-red-500 shadow-red-500/40 ring-4 ring-red-500/20"
+                  : isDarkMode
+                    ? "bg-zinc-100 text-zinc-900 hover:bg-white shadow-white/10"
+                    : "bg-stone-900 text-stone-50 hover:bg-black shadow-black/20"
+              }`}
+            >
+              {isRecording && (
+                <div className="absolute inset-0 rounded-full animate-ping opacity-20 bg-red-400" />
+              )}
+
+              {isProcessing ? (
+                <Loader2
+                  size={28}
+                  className={`animate-spin ${isDarkMode ? "text-zinc-900" : "text-white"}`}
+                />
+              ) : (
+                <Mic
+                  size={28}
+                  className={`transition-colors duration-200 ${isRecording ? "text-white" : ""}`}
+                />
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <PaywallModal 
+        isOpen={isPaywallOpen} 
+        onClose={() => setIsPaywallOpen(false)} 
+        onKeySaved={() => {
+          setProfile(p => p ? { ...p, gemini_api_key: "saved" } : null);
+        }} 
+      />
     </div>
   );
 }

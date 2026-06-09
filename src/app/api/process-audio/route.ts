@@ -1,17 +1,21 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextResponse } from "next/server";
+import { auth } from "@clerk/nextjs/server";
+import { createClient } from "@supabase/supabase-js";
 
-const apiKey = process.env.GEMINI_API_KEY || "";
-const genAI = new GoogleGenerativeAI(apiKey);
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
 const NO_SPEECH_PATTERNS = [
   /^\[?\s*silence\s*\]?$/i,
-  /^no\s+(speech|words|audio|sound)/i,
+  /^\[?\s*silencio\s*\]?$/i,
+  /^no\s+(speech|words|audio|sound|hay audio|se escucha nada)/i,
   /^\(?no\s+speech\)?$/i,
   /^nothing\s+(was\s+)?(said|spoken|detected)/i,
   /^(i\s+)?(cannot|can't)\s+(hear|detect|make out)/i,
   /^the\s+audio\s+(is|was)\s+silent/i,
   /^empty\s+audio$/i,
+  /^\[NO_AUDIO\]$/i,
 ];
 
 function isEmptyTranscription(text: string): boolean {
@@ -21,39 +25,64 @@ function isEmptyTranscription(text: string): boolean {
 }
 
 export async function POST(req: Request) {
-  if (!apiKey) {
-    return NextResponse.json(
-      { error: "Gemini API Key is not configured." },
-      { status: 500 }
-    );
-  }
-
   try {
+    const { userId } = await auth();
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const formData = await req.formData();
     const audioFile = formData.get("audio") as File;
+    const durationSeconds = parseInt(formData.get("durationSeconds") as string || "0", 10);
+    const context = formData.get("context") as string || "";
 
     if (!audioFile) {
-      return NextResponse.json(
-        { error: "Audio file is required." },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Audio file is required." }, { status: 400 });
     }
 
     if (audioFile.size === 0) {
       return NextResponse.json({ text: "", empty: true });
     }
 
-    // Convert audio file to base64
+    const supabase = createClient(supabaseUrl, supabaseKey);
+    let { data: profile } = await supabase.from("profiles").select("*").eq("user_id", userId).single();
+    
+    if (!profile) {
+      const { data: newProfile } = await supabase.from("profiles").insert({ user_id: userId, free_seconds_remaining: 900 }).select().single();
+      profile = newProfile;
+    }
+
+    const hasBalance = profile.free_seconds_remaining > 0;
+    const hasCustomKey = !!profile.gemini_api_key;
+
+    if (!hasBalance && !hasCustomKey) {
+      return NextResponse.json({ error: "Quota Exceeded" }, { status: 403 });
+    }
+
+    const apiKey = hasCustomKey ? profile.gemini_api_key : process.env.GEMINI_API_KEY;
+
+    if (!apiKey) {
+      return NextResponse.json({ error: "Gemini API Key is not configured." }, { status: 500 });
+    }
+
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+
     const audioBuffer = await audioFile.arrayBuffer();
     const base64Audio = Buffer.from(audioBuffer).toString("base64");
 
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const prompt = `You are a professional ghostwriter. Listen to the audio and transcribe it accurately into well-written paragraphs.
+CRITICAL INSTRUCTIONS:
+1. If the audio is silent or contains NO spoken words, you MUST return exactly the string "[NO_AUDIO]". Do not write anything else.
+2. You MUST write the output in the EXACT same language that is spoken in the audio. Do not translate it.
+3. Fix minor grammar issues and maintain the author's voice.
+4. Use this brief preceding context only to understand tone and continuity:
 
-    const prompt = `Listen to the attached audio and return a verbatim transcription of what was spoken.
-Preserve natural punctuation and paragraph breaks only where the speaker pauses.
-Do not rewrite, summarize, add content, or change the meaning.
-If the audio is silent or contains no intelligible spoken words, return an empty response with no explanation.
-Return only the transcribed text.`;
+[PREVIOUS CONTEXT]
+${context || "No preceding context."}
+[/PREVIOUS CONTEXT]
+
+Remember: If no words are spoken in the audio, return "[NO_AUDIO]" and nothing else.`;
 
     const result = await model.generateContent([
       {
@@ -71,9 +100,18 @@ Return only the transcribed text.`;
       return NextResponse.json({ text: "", empty: true });
     }
 
+    if (!hasCustomKey && hasBalance && durationSeconds > 0) {
+      const newBalance = Math.max(0, profile.free_seconds_remaining - durationSeconds);
+      await supabase.from("profiles").update({ free_seconds_remaining: newBalance }).eq("user_id", userId);
+    }
+
     return NextResponse.json({ text: responseText });
-  } catch (error) {
+
+  } catch (error: any) {
     console.error("Error processing audio:", error);
+    if (error?.message?.includes("API key not valid") || error?.status === 403) {
+       return NextResponse.json({ error: "Invalid Custom API Key" }, { status: 403 });
+    }
     return NextResponse.json(
       { error: `Failed to process audio: ${error instanceof Error ? error.message : String(error)}` },
       { status: 500 }

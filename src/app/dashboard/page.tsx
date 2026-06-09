@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { UserButton, useAuth } from "@clerk/nextjs";
 import Link from "next/link";
 
-type BookRecord = { id: string; title: string; created_at: string };
+type BookRecord = { id: string; title: string; created_at: string; word_count?: number };
 
 export default function Dashboard() {
   const router = useRouter();
@@ -23,13 +23,19 @@ export default function Dashboard() {
       if (!isLoaded || !userId) return;
 
       const supabase = createClient();
+      const { data: countsData } = await supabase.rpc("get_book_word_counts", { user_uuid: userId });
+      const countsMap = new Map();
+      if (countsData) {
+        countsData.forEach((row: any) => countsMap.set(row.book_id, row.word_count));
+      }
+
       const { data, error } = await supabase
         .from("books")
         .select("*")
         .eq("user_id", userId)
         .order("created_at", { ascending: false });
       if (!error && data) {
-        setProjects(data);
+        setProjects(data.map(book => ({ ...book, word_count: countsMap.get(book.id) || 0 })));
       }
       setIsLoading(false);
     }
@@ -141,9 +147,14 @@ export default function Dashboard() {
                   </div>
                   <div>
                     <h3 className="font-medium text-lg tracking-tight line-clamp-1">{book.title}</h3>
-                    <p className={`text-xs mt-1 ${isDarkMode ? "text-zinc-500" : "text-stone-500"}`}>
-                      {new Date(book.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
-                    </p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${isDarkMode ? "bg-zinc-800 text-zinc-300" : "bg-stone-200 text-stone-700"}`}>
+                        {(book.word_count || 0).toLocaleString()} palabras
+                      </span>
+                      <p className={`text-xs ${isDarkMode ? "text-zinc-500" : "text-stone-500"}`}>
+                        {new Date(book.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                      </p>
+                    </div>
                   </div>
                 </article>
               </Link>

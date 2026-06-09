@@ -7,12 +7,13 @@ import {
   useLayoutEffect,
   useCallback,
 } from "react";
-import { Mic, Moon, Sun, MoreHorizontal, Loader2, Pencil, Lock, Bookmark, User, Compass, Sparkles, ChevronLeft, ClipboardPaste, Copy, Check } from "lucide-react";
+import { Mic, Moon, Sun, MoreHorizontal, Loader2, Pencil, Lock, Bookmark, User, Compass, Sparkles, ChevronLeft, ClipboardPaste, Copy, Check, Trash2 } from "lucide-react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { UserButton, useAuth } from "@clerk/nextjs";
 import { createClient } from "@/utils/supabase/client";
 import PaywallModal from "@/components/PaywallModal";
+import ConfirmModal from "@/components/ConfirmModal";
 
 type Block = { id: string; text: string; note_type?: string };
 
@@ -62,6 +63,7 @@ function TextBlock({
   onSave,
   onEndEdit,
   onChangeNoteType,
+  onDelete,
 }: {
   block: Block;
   isDarkMode: boolean;
@@ -72,6 +74,7 @@ function TextBlock({
   onSave: (text: string, type?: string) => void;
   onEndEdit: () => void;
   onChangeNoteType: (id: string, type: string) => void;
+  onDelete: () => void;
 }) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -225,6 +228,16 @@ Please act as an expert researcher and author assistant. Conduct a deep, compreh
           >
             <Pencil size={15} strokeWidth={1.75} />
           </button>
+          <button
+            type="button"
+            onClick={onDelete}
+            aria-label="Delete paragraph"
+            className={`rounded-lg p-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 focus:opacity-100 transition-all ${
+              isDarkMode ? "text-zinc-500 hover:text-red-400 hover:bg-red-500/10" : "text-stone-400 hover:text-red-500 hover:bg-red-50"
+            }`}
+          >
+            <Trash2 size={15} strokeWidth={1.75} />
+          </button>
         </div>
       )}
     </article>
@@ -243,6 +256,8 @@ export default function BookEditor() {
   const [isLoading, setIsLoading] = useState(true);
   const [editingBlockId, setEditingBlockId] = useState<string | null>(null);
   const [highlightBlockId, setHighlightBlockId] = useState<string | null>(null);
+  const [blockToDelete, setBlockToDelete] = useState<Block | null>(null);
+  const [isDeletingBlock, setIsDeletingBlock] = useState(false);
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
   const [profile, setProfile] = useState<{ free_seconds_remaining: number; gemini_api_key?: string } | null>(null);
   const [isPaywallOpen, setIsPaywallOpen] = useState(false);
@@ -469,6 +484,18 @@ export default function BookEditor() {
     } finally {
       setIsProcessing(false);
     }
+  };
+
+  const handleDeleteBlock = async () => {
+    if (!blockToDelete) return;
+    setIsDeletingBlock(true);
+    const supabase = createClient();
+    
+    await supabase.from("blocks").delete().eq("id", blockToDelete.id);
+    
+    setBlocks(blocks.filter((b) => b.id !== blockToDelete.id));
+    setBlockToDelete(null);
+    setIsDeletingBlock(false);
   };
 
   const startRecording = async () => {
@@ -811,6 +838,7 @@ export default function BookEditor() {
               onSave={(text, type) => handleBlockSave(block.id, text, type)}
               onEndEdit={endEdit}
               onChangeNoteType={handleChangeNoteType}
+              onDelete={() => setBlockToDelete(block)}
             />
           </div>
         ))}
@@ -944,6 +972,16 @@ export default function BookEditor() {
         onKeySaved={() => {
           setProfile(p => p ? { ...p, gemini_api_key: "saved" } : null);
         }} 
+      />
+
+      <ConfirmModal
+        isOpen={!!blockToDelete}
+        title="Delete Block"
+        description="Are you sure you want to delete this text block? This action cannot be undone."
+        isDarkMode={isDarkMode}
+        isLoading={isDeletingBlock}
+        onConfirm={handleDeleteBlock}
+        onCancel={() => setBlockToDelete(null)}
       />
     </div>
   );

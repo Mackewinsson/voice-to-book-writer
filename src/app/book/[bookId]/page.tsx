@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { createClient } from "@/utils/supabase/client";
-import { Loader2, Plus, Moon, Sun, ChevronLeft, FileText, MoreVertical } from "lucide-react";
+import { Loader2, Plus, Moon, Sun, ChevronLeft, FileText, MoreVertical, Download } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
+import { UserButton, useAuth } from "@clerk/nextjs";
 import Link from "next/link";
 
 type BookRecord = { id: string; title: string };
@@ -11,6 +12,7 @@ type ChapterRecord = { id: string; title: string; created_at: string };
 
 export default function ChapterList() {
   const router = useRouter();
+  const { userId, isLoaded } = useAuth();
   const params = useParams<{ bookId: string }>();
   const bookId = params?.bookId;
 
@@ -18,14 +20,15 @@ export default function ChapterList() {
   const [chapters, setChapters] = useState<ChapterRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
 
   useEffect(() => {
     async function fetchData() {
-      if (!bookId) return;
+      if (!bookId || !isLoaded || !userId) return;
       const supabase = createClient();
       
-      const { data: bookData } = await supabase.from("books").select("*").eq("id", bookId).single();
+      const { data: bookData } = await supabase.from("books").select("*").eq("id", bookId).eq("user_id", userId).single();
       if (bookData) setBook(bookData);
 
       const { data: chaptersData } = await supabase.from("chapters").select("*").eq("book_id", bookId).order("created_at", { ascending: true });
@@ -34,7 +37,7 @@ export default function ChapterList() {
       setIsLoading(false);
     }
     fetchData();
-  }, [bookId]);
+  }, [bookId, isLoaded, userId]);
 
   const toggleDarkMode = () => {
     setIsDarkMode(!isDarkMode);
@@ -67,6 +70,101 @@ export default function ChapterList() {
     router.push(`/book/${bookId}/chapter/${chapter.id}`);
   };
 
+  const handleExportWord = async () => {
+    if (!book || chapters.length === 0) return;
+    setIsExporting(true);
+    
+    try {
+      const supabase = createClient();
+      
+      const chapterIds = chapters.map(c => c.id);
+      const { data: blocksData, error: blocksErr } = await supabase
+        .from("blocks")
+        .select("*")
+        .in("chapter_id", chapterIds)
+        .order("order_index", { ascending: true });
+        
+      if (blocksErr) {
+        console.error("Failed to fetch blocks for export", blocksErr);
+        setIsExporting(false);
+        return;
+      }
+      
+      const { Document, Packer, Paragraph, TextRun, HeadingLevel } = await import("docx");
+
+      const blocksByChapter = chapters.reduce((acc, chapter) => {
+        acc[chapter.id] = blocksData?.filter(b => b.chapter_id === chapter.id) || [];
+        return acc;
+      }, {} as Record<string, any[]>);
+
+      const chapterParagraphs = chapters.flatMap((chapter, index) => {
+        const chapterBlocks = blocksByChapter[chapter.id] || [];
+        
+        const titlePara = new Paragraph({
+          text: chapter.title || `Chapter ${index + 1}`,
+          heading: HeadingLevel.HEADING_1,
+          spacing: { before: 400, after: 400 },
+          pageBreakBefore: index > 0,
+        });
+
+        const blockParas = chapterBlocks.map((block) => {
+          const isNormal = !block.note_type || block.note_type === "normal";
+          if (!isNormal) {
+            const labels: Record<string, string> = {
+              investigate_later: "[Investigate Later] ",
+              author_note: "[Author Note] ",
+              character_idea: "[Character Idea] ",
+              plot_point: "[Plot Point] ",
+            };
+            const textPrefix = labels[block.note_type] || `[${block.note_type}] `;
+            
+            return new Paragraph({
+              children: [
+                new TextRun({ text: textPrefix, bold: true, italics: true }),
+                new TextRun({ text: block.content, italics: true })
+              ],
+              spacing: { after: 300 }
+            });
+          }
+
+          return new Paragraph({
+            children: [new TextRun({ text: block.content })],
+            spacing: { after: 300 }
+          });
+        });
+
+        return [titlePara, ...blockParas];
+      });
+
+      const doc = new Document({
+        sections: [
+          {
+            children: [
+              new Paragraph({
+                text: book.title || "Untitled Draft",
+                heading: HeadingLevel.TITLE,
+                spacing: { after: 800 },
+              }),
+              ...chapterParagraphs
+            ],
+          },
+        ],
+      });
+
+      const blob = await Packer.toBlob(doc);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${book.title || "Exported_Book"}.docx`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Export error", error);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   return (
     <div className={`min-h-screen flex flex-col font-sans transition-colors duration-300 ${isDarkMode ? "bg-[#0c0c0e] text-zinc-100" : "bg-[#f7f4ef] text-stone-900"}`}>
       <div className={`pointer-events-none fixed inset-0 ${isDarkMode ? "bg-[radial-gradient(ellipse_at_top,_rgba(120,90,50,0.08),_transparent_55%)]" : "bg-[radial-gradient(ellipse_at_top,_rgba(180,140,90,0.12),_transparent_55%)]"}`} aria-hidden />
@@ -89,27 +187,44 @@ export default function ChapterList() {
             <h1 className="text-xl font-medium tracking-tight mt-0.5">Chapters</h1>
           </div>
         </div>
-        <button onClick={toggleDarkMode} className={`p-2 rounded-full transition-colors ${isDarkMode ? "hover:bg-white/10" : "hover:bg-black/5"}`}>
-          {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
-        </button>
+        <div className="flex gap-4 items-center">
+          <button onClick={toggleDarkMode} className={`p-2 rounded-full transition-colors ${isDarkMode ? "hover:bg-white/10" : "hover:bg-black/5"}`}>
+            {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
+          </button>
+          <UserButton />
+        </div>
       </header>
 
       <main className="relative flex-1 overflow-y-auto px-4 sm:px-6 md:max-w-4xl md:mx-auto w-full py-8 space-y-6">
         
-        <div className="flex justify-between items-center">
+        <div className="flex justify-between items-center flex-wrap gap-4">
           <h2 className="text-2xl font-semibold tracking-tight">Table of Contents</h2>
-          <button 
-            onClick={handleCreateChapter}
-            disabled={isCreating}
-            className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all shadow-sm ${
-              isDarkMode 
-                ? "bg-zinc-100 text-zinc-900 hover:bg-white shadow-white/5" 
-                : "bg-stone-900 text-stone-50 hover:bg-black shadow-black/10"
-            }`}
-          >
-            {isCreating ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
-            New Chapter
-          </button>
+          <div className="flex gap-2">
+            <button 
+              onClick={handleExportWord}
+              disabled={isExporting || chapters.length === 0}
+              className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all shadow-sm ${
+                isDarkMode 
+                  ? "bg-zinc-800 text-zinc-300 hover:bg-zinc-700 disabled:opacity-50" 
+                  : "bg-white text-stone-700 hover:bg-stone-50 border disabled:opacity-50"
+              }`}
+            >
+              {isExporting ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
+              Export Word
+            </button>
+            <button 
+              onClick={handleCreateChapter}
+              disabled={isCreating}
+              className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all shadow-sm ${
+                isDarkMode 
+                  ? "bg-zinc-100 text-zinc-900 hover:bg-white shadow-white/5" 
+                  : "bg-stone-900 text-stone-50 hover:bg-black shadow-black/10"
+              }`}
+            >
+              {isCreating ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
+              New Chapter
+            </button>
+          </div>
         </div>
 
         {isLoading ? (

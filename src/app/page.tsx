@@ -2,30 +2,39 @@
 
 import { useState, useEffect } from "react";
 import { createClient } from "@/utils/supabase/client";
-import { Loader2, Plus, Moon, Sun, Book, MoreVertical } from "lucide-react";
+import { Loader2, Plus, Moon, Sun, Library, MoreVertical } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { UserButton, useAuth } from "@clerk/nextjs";
 import Link from "next/link";
 
 type BookRecord = { id: string; title: string; created_at: string };
 
 export default function Dashboard() {
   const router = useRouter();
-  const [books, setBooks] = useState<BookRecord[]>([]);
+  const { userId, isLoaded } = useAuth();
+  
+  const [projects, setProjects] = useState<BookRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
 
   useEffect(() => {
-    async function fetchBooks() {
+    async function fetchProjects() {
+      if (!isLoaded || !userId) return;
+
       const supabase = createClient();
-      const { data, error } = await supabase.from("books").select("*").order("created_at", { ascending: false });
+      const { data, error } = await supabase
+        .from("books")
+        .select("*")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false });
       if (!error && data) {
-        setBooks(data);
+        setProjects(data);
       }
       setIsLoading(false);
     }
-    fetchBooks();
-  }, []);
+    fetchProjects();
+  }, [isLoaded, userId]);
 
   const toggleDarkMode = () => {
     setIsDarkMode(!isDarkMode);
@@ -36,15 +45,14 @@ export default function Dashboard() {
     }
   };
 
-  const handleCreateBook = async () => {
+  const handleCreateProject = async () => {
+    if (!userId) return;
     setIsCreating(true);
     const supabase = createClient();
-    const newTitle = "Untitled Draft";
     
-    // Create Book
     const { data: book, error: bookErr } = await supabase
       .from("books")
-      .insert({ title: newTitle })
+      .insert({ title: "Untitled Draft", user_id: userId })
       .select()
       .single();
 
@@ -73,12 +81,15 @@ export default function Dashboard() {
 
       <header className={`sticky top-0 z-10 flex justify-between items-center p-4 sm:p-6 backdrop-blur-md ${isDarkMode ? "bg-[#0c0c0e]/85 border-b border-zinc-800/80" : "bg-[#f7f4ef]/85 border-b border-stone-200/80"}`}>
         <div>
-          <p className={`text-[11px] uppercase tracking-[0.22em] ${isDarkMode ? "text-zinc-500" : "text-stone-500"}`}>Voice-to-Book</p>
-          <h1 className="text-xl font-medium tracking-tight mt-0.5">My Projects</h1>
+          <p className={`text-[11px] uppercase tracking-[0.22em] ${isDarkMode ? "text-zinc-500" : "text-stone-500"}`}>Projects</p>
+          <h1 className="text-xl font-medium tracking-tight mt-0.5">My Books</h1>
         </div>
-        <button onClick={toggleDarkMode} className={`p-2 rounded-full transition-colors ${isDarkMode ? "hover:bg-white/10" : "hover:bg-black/5"}`}>
-          {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
-        </button>
+        <div className="flex gap-4 items-center">
+          <button onClick={toggleDarkMode} className={`p-2 rounded-full transition-colors ${isDarkMode ? "hover:bg-white/10" : "hover:bg-black/5"}`}>
+            {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
+          </button>
+          <UserButton />
+        </div>
       </header>
 
       <main className="relative flex-1 overflow-y-auto px-4 sm:px-6 md:max-w-4xl md:mx-auto w-full py-8 space-y-6">
@@ -86,7 +97,7 @@ export default function Dashboard() {
         <div className="flex justify-between items-center">
           <h2 className="text-2xl font-semibold tracking-tight">Recent Drafts</h2>
           <button 
-            onClick={handleCreateBook}
+            onClick={handleCreateProject}
             disabled={isCreating}
             className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all shadow-sm ${
               isDarkMode 
@@ -103,17 +114,17 @@ export default function Dashboard() {
           <div className="flex justify-center items-center py-20 opacity-50">
             <Loader2 className="w-8 h-8 animate-spin" />
           </div>
-        ) : books.length === 0 ? (
+        ) : projects.length === 0 ? (
           <div className="text-center py-20 space-y-3">
             <div className={`inline-flex p-4 rounded-full ${isDarkMode ? "bg-zinc-800/50" : "bg-stone-200/50"}`}>
-              <Book size={32} className={isDarkMode ? "text-zinc-500" : "text-stone-400"} />
+              <Library size={32} className={isDarkMode ? "text-zinc-500" : "text-stone-400"} />
             </div>
             <p className={`text-xl font-medium tracking-tight ${isDarkMode ? "text-zinc-300" : "text-stone-700"}`}>No projects yet</p>
             <p className={`text-sm ${isDarkMode ? "text-zinc-500" : "text-stone-500"}`}>Create your first book project to start writing with your voice.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-            {books.map(book => (
+            {projects.map(book => (
               <Link href={`/book/${book.id}`} key={book.id}>
                 <article className={`group flex flex-col justify-between h-40 p-5 rounded-2xl border transition-all hover:-translate-y-1 hover:shadow-lg ${
                   isDarkMode 
@@ -122,7 +133,7 @@ export default function Dashboard() {
                 }`}>
                   <div className="flex justify-between items-start">
                     <div className={`p-2 rounded-xl ${isDarkMode ? "bg-zinc-800" : "bg-stone-100 group-hover:bg-stone-200"} transition-colors`}>
-                      <Book size={20} className={isDarkMode ? "text-zinc-400" : "text-stone-500"} />
+                      <Library size={20} className={isDarkMode ? "text-zinc-400" : "text-stone-500"} />
                     </div>
                     <button className={`p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all ${isDarkMode ? "hover:bg-zinc-700 text-zinc-400" : "hover:bg-stone-100 text-stone-400"}`}>
                       <MoreVertical size={16} />

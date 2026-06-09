@@ -10,6 +10,7 @@ import {
 import { Mic, Moon, Sun, MoreHorizontal, Loader2, Pencil, Lock, Bookmark, User, Compass, Sparkles, ChevronLeft } from "lucide-react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import { UserButton, useAuth } from "@clerk/nextjs";
 import { createClient } from "@/utils/supabase/client";
 
 type Block = { id: string; text: string; note_type?: string };
@@ -201,6 +202,7 @@ export default function BookEditor() {
   const params = useParams<{ bookId: string; chapterId: string }>();
   const bookId = params?.bookId;
   const chapterId = params?.chapterId;
+  const { userId, isLoaded } = useAuth();
 
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
@@ -254,6 +256,8 @@ export default function BookEditor() {
 
   useEffect(() => {
     async function loadData() {
+      if (!isLoaded || !userId) return;
+      
       try {
         const supabase = createClient();
 
@@ -261,6 +265,7 @@ export default function BookEditor() {
           .from("books")
           .select("*")
           .eq("id", bookId)
+          .eq("user_id", userId)
           .single();
 
         if (bookErr || !books) {
@@ -312,7 +317,7 @@ export default function BookEditor() {
       }
     }
     loadData();
-  }, []);
+  }, [bookId, chapterId, isLoaded, userId]);
 
   useEffect(() => {
     if (isProcessing || highlightBlockId) scrollToActive();
@@ -617,22 +622,17 @@ export default function BookEditor() {
             )}
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-4 items-center">
           <button
             onClick={toggleDarkMode}
             className={`p-2 rounded-full transition-colors ${
-              isDarkMode ? "hover:bg-white/10" : "hover:bg-black/5"
+              isDarkMode ? "hover:bg-white/10 text-zinc-400" : "hover:bg-black/5 text-stone-500"
             }`}
+            aria-label="Toggle dark mode"
           >
             {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
           </button>
-          <button
-            className={`p-2 rounded-full transition-colors ${
-              isDarkMode ? "hover:bg-white/10" : "hover:bg-black/5"
-            }`}
-          >
-            <MoreHorizontal size={20} />
-          </button>
+          <UserButton />
         </div>
       </header>
 

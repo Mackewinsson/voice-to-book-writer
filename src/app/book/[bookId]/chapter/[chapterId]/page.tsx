@@ -7,7 +7,7 @@ import {
   useLayoutEffect,
   useCallback,
 } from "react";
-import { Mic, Moon, Sun, MoreHorizontal, Loader2, Pencil, Lock, Bookmark, User, Compass, Sparkles, ChevronLeft, ClipboardPaste, Copy, Check, Trash2, Bot, GripVertical, ChevronDown } from "lucide-react";
+import { Mic, Moon, Sun, Loader2, Pencil, Lock, Bookmark, User, Compass, Sparkles, ChevronLeft, ClipboardPaste, Check, Trash2, Bot, GripVertical, ChevronDown } from "lucide-react";
 import { Reorder, useDragControls } from "framer-motion";
 import { useParams } from "next/navigation";
 import Link from "next/link";
@@ -333,7 +333,7 @@ export default function BookEditor() {
       try {
         const supabase = createClient();
 
-        let { data: books, error: bookErr } = await supabase
+        const { data: books, error: bookErr } = await supabase
           .from("books")
           .select("*")
           .eq("id", bookId)
@@ -345,12 +345,12 @@ export default function BookEditor() {
           return;
         }
 
-        let book = books;
+        const book = books;
 
         if (!book) return;
         setBookTitle(book.title);
 
-        let { data: chapter, error: chapterErr } = await supabase
+        const { data: chapter, error: chapterErr } = await supabase
           .from("chapters")
           .select("*")
           .eq("id", chapterId)
@@ -460,7 +460,7 @@ export default function BookEditor() {
       return;
     }
 
-    const updatePayload: any = { content: newText };
+    const updatePayload: Record<string, string> = { content: newText };
     if (note_type) updatePayload.note_type = note_type;
     await supabase.from("blocks").update(updatePayload).eq("id", id);
   };
@@ -598,6 +598,7 @@ export default function BookEditor() {
         await processAudio(audioBlob, durationMs);
       };
 
+      // eslint-disable-next-line react-hooks/purity
       recordingStartedAtRef.current = Date.now();
       mediaRecorder.start();
       setIsRecording(true);

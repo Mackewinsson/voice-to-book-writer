@@ -71,7 +71,7 @@ export default function Dashboard() {
       const { data: countsData } = await supabase.rpc("get_book_word_counts", { user_uuid: userId });
       const countsMap = new Map();
       if (countsData) {
-        countsData.forEach((row: any) => countsMap.set(row.book_id, row.word_count));
+        countsData.forEach((row: { book_id: string; word_count: number }) => countsMap.set(row.book_id, row.word_count));
       }
 
       const { data, error } = await supabase

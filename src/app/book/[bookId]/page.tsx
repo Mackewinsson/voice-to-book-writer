@@ -85,7 +85,7 @@ export default function ChapterList() {
       const { data: countsData } = await supabase.rpc("get_chapter_word_counts", { book_uuid: bookId });
       const countsMap = new Map();
       if (countsData) {
-        countsData.forEach((row: any) => countsMap.set(row.chapter_id, row.word_count));
+        countsData.forEach((row: { chapter_id: string; word_count: number }) => countsMap.set(row.chapter_id, row.word_count));
       }
 
       const { data: chaptersData } = await supabase.from("chapters").select("*").eq("book_id", bookId).order("created_at", { ascending: true });
@@ -172,7 +172,7 @@ export default function ChapterList() {
       const blocksByChapter = chapters.reduce((acc, chapter) => {
         acc[chapter.id] = blocksData?.filter(b => b.chapter_id === chapter.id) || [];
         return acc;
-      }, {} as Record<string, any[]>);
+      }, {} as Record<string, BlockRecord[]>);
 
       const chapterParagraphs = chapters.flatMap((chapter, index) => {
         const chapterBlocks = blocksByChapter[chapter.id] || [];

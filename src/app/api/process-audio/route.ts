@@ -107,9 +107,10 @@ Remember: If no words are spoken in the audio, return "[NO_AUDIO]" and nothing e
 
     return NextResponse.json({ text: responseText });
 
-  } catch (error: any) {
+  } catch (error) {
     console.error("Error processing audio:", error);
-    if (error?.message?.includes("API key not valid") || error?.status === 403) {
+    const err = error as { message?: string; status?: number };
+    if (err?.message?.includes("API key not valid") || err?.status === 403) {
        return NextResponse.json({ error: "Invalid Custom API Key" }, { status: 403 });
     }
     return NextResponse.json(

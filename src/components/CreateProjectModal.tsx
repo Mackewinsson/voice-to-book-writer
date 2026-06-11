@@ -26,6 +26,7 @@ export default function CreateProjectModal({
 
   useEffect(() => {
     if (isOpen) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setStep("type");
     }
   }, [isOpen]);

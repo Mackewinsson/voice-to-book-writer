@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { lemonSqueezySetup, createCheckout } from '@lemonsqueezy/lemonsqueezy.js';
 
-export async function POST(req: Request) {
+export async function POST() {
   try {
     const { userId } = await auth();
     
@@ -35,7 +35,7 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({ checkoutUrl: data?.data.attributes.url });
-  } catch (error: any) {
+  } catch (error) {
     console.error('Checkout error:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }

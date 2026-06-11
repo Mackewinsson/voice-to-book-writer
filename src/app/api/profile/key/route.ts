@@ -13,7 +13,7 @@ export async function POST(req: Request) {
     const { apiKey } = await req.json();
     
     const supabase = createClient(supabaseUrl, supabaseKey);
-    let { data: profile } = await supabase.from("profiles").select("*").eq("user_id", userId).single();
+    const { data: profile } = await supabase.from("profiles").select("*").eq("user_id", userId).single();
     
     if (!profile) {
       await supabase.from("profiles").insert({ user_id: userId, free_seconds_remaining: 900, gemini_api_key: apiKey });
@@ -22,7 +22,7 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({ success: true });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error) {
+    return NextResponse.json({ error: (error as Error).message }, { status: 500 });
   }
 }

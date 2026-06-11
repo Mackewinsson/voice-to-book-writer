@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { createClient } from "@/utils/supabase/client";
-import { Loader2, Plus, Moon, Sun, ChevronLeft, FileText, Download, Pencil, Trash2 } from "lucide-react";
+import { Loader2, Plus, Moon, Sun, ChevronLeft, FileText, Download, Pencil, Trash2, List, ScrollText } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { UserButton, useAuth } from "@clerk/nextjs";
 import Link from "next/link";
@@ -10,6 +10,7 @@ import ConfirmModal from "@/components/ConfirmModal";
 
 type BookRecord = { id: string; title: string };
 type ChapterRecord = { id: string; title: string; created_at: string; word_count?: number };
+type BlockRecord = { id: string; chapter_id: string; content: string; note_type: string; order_index: number; };
 
 export default function ChapterList() {
   const router = useRouter();
@@ -25,6 +26,10 @@ export default function ChapterList() {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const titleInputRef = useRef<HTMLInputElement>(null);
+
+  const [viewMode, setViewMode] = useState<"list" | "manuscript">("list");
+  const [allBlocks, setAllBlocks] = useState<BlockRecord[]>([]);
+  const [isLoadingManuscript, setIsLoadingManuscript] = useState(false);
 
   const handleTitleSave = async (newTitle: string) => {
     const finalTitle = newTitle.trim() || "Untitled Draft";
@@ -90,6 +95,26 @@ export default function ChapterList() {
     }
     fetchData();
   }, [bookId, isLoaded, userId]);
+
+  useEffect(() => {
+    async function fetchManuscript() {
+      if (viewMode !== "manuscript" || chapters.length === 0 || allBlocks.length > 0) return;
+      setIsLoadingManuscript(true);
+      const supabase = createClient();
+      const chapterIds = chapters.map(c => c.id);
+      const { data, error } = await supabase
+        .from("blocks")
+        .select("*")
+        .in("chapter_id", chapterIds)
+        .order("order_index", { ascending: true });
+        
+      if (!error && data) {
+        setAllBlocks(data);
+      }
+      setIsLoadingManuscript(false);
+    }
+    fetchManuscript();
+  }, [viewMode, chapters, allBlocks.length]);
 
   const toggleDarkMode = () => {
     setIsDarkMode(!isDarkMode);
@@ -271,7 +296,27 @@ export default function ChapterList() {
       <main className="relative flex-1 overflow-y-auto px-4 sm:px-6 md:max-w-4xl md:mx-auto w-full py-8 space-y-6">
         
         <div className="flex justify-between items-center flex-wrap gap-4">
-          <h2 className="text-2xl font-semibold tracking-tight">Table of Contents</h2>
+          <div className="flex items-center gap-4">
+            <h2 className="text-2xl font-semibold tracking-tight">
+              {viewMode === "list" ? "Table of Contents" : "Manuscript"}
+            </h2>
+            <div className={`flex p-1 rounded-lg ${isDarkMode ? "bg-zinc-800/50" : "bg-stone-200/50"}`}>
+              <button
+                onClick={() => setViewMode("list")}
+                className={`p-1.5 rounded-md transition-all ${viewMode === "list" ? (isDarkMode ? "bg-zinc-700 text-zinc-100 shadow-sm" : "bg-white text-stone-900 shadow-sm") : (isDarkMode ? "text-zinc-500 hover:text-zinc-300" : "text-stone-500 hover:text-stone-700")}`}
+                title="List View"
+              >
+                <List size={16} />
+              </button>
+              <button
+                onClick={() => setViewMode("manuscript")}
+                className={`p-1.5 rounded-md transition-all ${viewMode === "manuscript" ? (isDarkMode ? "bg-zinc-700 text-zinc-100 shadow-sm" : "bg-white text-stone-900 shadow-sm") : (isDarkMode ? "text-zinc-500 hover:text-zinc-300" : "text-stone-500 hover:text-stone-700")}`}
+                title="Manuscript View"
+              >
+                <ScrollText size={16} />
+              </button>
+            </div>
+          </div>
           <div className="flex gap-2">
             <button 
               onClick={handleExportWord}
@@ -304,6 +349,57 @@ export default function ChapterList() {
           <div className="flex justify-center items-center py-20 opacity-50">
             <Loader2 className="w-8 h-8 animate-spin" />
           </div>
+        ) : viewMode === "manuscript" ? (
+          isLoadingManuscript ? (
+            <div className="flex justify-center items-center py-20 opacity-50">
+              <Loader2 className="w-8 h-8 animate-spin" />
+            </div>
+          ) : (
+            <div className={`max-w-2xl mx-auto py-8 space-y-16 ${isDarkMode ? "text-zinc-300" : "text-stone-800"} text-lg leading-relaxed font-serif`}>
+              {chapters.map(chapter => {
+                const chapterBlocks = allBlocks.filter(b => b.chapter_id === chapter.id);
+                return (
+                  <section key={chapter.id} className="space-y-6">
+                    <h2 className={`text-3xl font-bold tracking-tight font-sans mb-8 ${isDarkMode ? "text-zinc-100" : "text-stone-900"}`}>
+                      {chapter.title}
+                    </h2>
+                    {chapterBlocks.length === 0 ? (
+                      <p className="italic opacity-40 text-sm font-sans">No text written yet.</p>
+                    ) : (
+                      <div className="space-y-4">
+                        {chapterBlocks.map(block => {
+                          const isNormal = !block.note_type || block.note_type === "normal";
+                          if (!isNormal) {
+                            const labels: Record<string, string> = {
+                              investigate_later: "Investigate Later",
+                              author_note: "Author Note",
+                              character_idea: "Character Idea",
+                              plot_point: "Plot Point",
+                            };
+                            return (
+                              <div key={block.id} className={`p-4 rounded-xl text-sm font-sans my-6 border-l-2 ${
+                                isDarkMode 
+                                  ? "bg-amber-900/10 border-amber-500/50 text-amber-200/80" 
+                                  : "bg-amber-50 border-amber-400 text-amber-800"
+                              }`}>
+                                <span className="font-bold uppercase tracking-wider text-[10px] mb-1 block opacity-70">
+                                  {labels[block.note_type] || block.note_type}
+                                </span>
+                                {block.content}
+                              </div>
+                            );
+                          }
+                          return (
+                            <p key={block.id} className="whitespace-pre-wrap">{block.content}</p>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </section>
+                );
+              })}
+            </div>
+          )
         ) : chapters.length === 0 ? (
           <div className="text-center py-20 space-y-3">
             <div className={`inline-flex p-4 rounded-full ${isDarkMode ? "bg-zinc-800/50" : "bg-stone-200/50"}`}>

@@ -7,7 +7,7 @@ import {
   useLayoutEffect,
   useCallback,
 } from "react";
-import { Mic, Moon, Sun, MoreHorizontal, Loader2, Pencil, Lock, Bookmark, User, Compass, Sparkles, ChevronLeft, ClipboardPaste, Copy, Check, Trash2, Bot, GripVertical } from "lucide-react";
+import { Mic, Moon, Sun, MoreHorizontal, Loader2, Pencil, Lock, Bookmark, User, Compass, Sparkles, ChevronLeft, ClipboardPaste, Copy, Check, Trash2, Bot, GripVertical, ChevronDown } from "lucide-react";
 import { Reorder, useDragControls } from "framer-motion";
 import { useParams } from "next/navigation";
 import Link from "next/link";
@@ -290,6 +290,9 @@ export default function BookEditor() {
   const [blocks, setBlocks] = useState<Block[]>([]);
   const [bookTitle, setBookTitle] = useState("");
   const [chapterTitle, setChapterTitle] = useState("");
+  const [chapterDescription, setChapterDescription] = useState<string | null>(null);
+  const [chapterDetailedDescription, setChapterDetailedDescription] = useState<string | null>(null);
+  const [isGuideExpanded, setIsGuideExpanded] = useState(false);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [isEditingChapter, setIsEditingChapter] = useState(false);
   const titleInputRef = useRef<HTMLInputElement>(null);
@@ -358,6 +361,8 @@ export default function BookEditor() {
         }
 
         setChapterTitle(chapter.title);
+        setChapterDescription(chapter.description);
+        setChapterDetailedDescription(chapter.detailed_description);
 
         const { data: fetchedBlocks, error: blocksErr } = await supabase
           .from("blocks")
@@ -840,6 +845,36 @@ export default function BookEditor() {
       </header>
 
       <main className="relative flex-1 overflow-y-auto px-4 sm:px-6 md:max-w-2xl md:mx-auto w-full pb-[50vh] pt-[40vh] space-y-5">
+        
+        {chapterDescription && (
+          <div className={`p-4 rounded-xl border mb-6 text-sm backdrop-blur-md ${isDarkMode ? "bg-indigo-500/10 border-indigo-500/20 text-indigo-200" : "bg-indigo-50 border-indigo-200 text-indigo-800"}`}>
+            <div className="flex items-center justify-between mb-1.5">
+              <div className="flex items-center gap-2 font-semibold">
+                <Sparkles size={16} />
+                Chapter Guide
+              </div>
+              {chapterDetailedDescription && (
+                <button 
+                  onClick={() => setIsGuideExpanded(!isGuideExpanded)}
+                  className={`flex items-center gap-1 text-[10px] uppercase tracking-wider font-bold px-2 py-1 rounded transition-colors ${
+                    isDarkMode ? "hover:bg-indigo-500/20" : "hover:bg-indigo-200"
+                  }`}
+                >
+                  {isGuideExpanded ? "Show Less" : "Read More"}
+                  <ChevronDown size={12} className={`transition-transform duration-200 ${isGuideExpanded ? "rotate-180" : ""}`} />
+                </button>
+              )}
+            </div>
+            <p className="leading-relaxed opacity-90">{chapterDescription}</p>
+            
+            {chapterDetailedDescription && isGuideExpanded && (
+              <div className={`mt-3 pt-3 border-t ${isDarkMode ? "border-indigo-500/20" : "border-indigo-200"}`}>
+                <p className="leading-relaxed opacity-80">{chapterDetailedDescription}</p>
+              </div>
+            )}
+          </div>
+        )}
+
         {isLoading && (
           <div className="flex justify-center items-center py-10 opacity-50">
             <Loader2 className="w-6 h-6 animate-spin" />

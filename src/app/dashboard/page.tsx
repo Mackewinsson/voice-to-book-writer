@@ -151,13 +151,13 @@ export default function Dashboard() {
     }
 
     // Create chapters sequentially to maintain order via created_at
-    for (const chapterTitle of formula.chapters) {
+    for (const chapter of formula.chapters) {
       const { error: chapterErr } = await supabase
         .from("chapters")
-        .insert({ book_id: book.id, title: chapterTitle });
+        .insert({ book_id: book.id, title: chapter.title, description: chapter.description, detailed_description: chapter.detailedDescription });
         
       if (chapterErr) {
-        console.error(`Failed to create chapter: ${chapterTitle}`, chapterErr);
+        console.error(`Failed to create chapter: ${chapter.title}`, chapterErr);
       }
       
       // tiny delay to ensure created_at ordering if supabase resolution is low

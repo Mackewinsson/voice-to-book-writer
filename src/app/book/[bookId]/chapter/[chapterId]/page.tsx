@@ -7,7 +7,8 @@ import {
   useLayoutEffect,
   useCallback,
 } from "react";
-import { Mic, Moon, Sun, MoreHorizontal, Loader2, Pencil, Lock, Bookmark, User, Compass, Sparkles, ChevronLeft, ClipboardPaste, Copy, Check, Trash2, Bot } from "lucide-react";
+import { Mic, Moon, Sun, MoreHorizontal, Loader2, Pencil, Lock, Bookmark, User, Compass, Sparkles, ChevronLeft, ClipboardPaste, Copy, Check, Trash2, Bot, GripVertical } from "lucide-react";
+import { Reorder, useDragControls } from "framer-motion";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { UserButton, useAuth } from "@clerk/nextjs";
@@ -77,6 +78,7 @@ function TextBlock({
   onDelete: () => void;
 }) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const dragControls = useDragControls();
 
   const cardClass = isDarkMode
     ? "bg-zinc-900/70 border-zinc-700/80"
@@ -126,13 +128,27 @@ Please act as an expert researcher and author assistant. Conduct a deep, compreh
   const TypeIcon = activeType.icon;
 
   return (
-    <article
-      className={`relative rounded-xl border p-4 pr-12 transition-colors ${cardClass} ${
+    <Reorder.Item
+      as="article"
+      value={block}
+      id={block.id}
+      dragListener={false}
+      dragControls={dragControls}
+      className={`group relative rounded-xl border p-4 pl-12 pr-12 transition-colors ${cardClass} ${
         activeType.id !== 'normal' ? activeType.color : ''
       } ${
         isHighlighted ? "block-highlight" : ""
       } ${isHighlighted ? "block-enter" : ""}`}
     >
+      {/* Drag Handle */}
+      <div 
+        className={`absolute left-3 top-1/2 -translate-y-1/2 p-1.5 cursor-grab active:cursor-grabbing rounded-md opacity-20 hover:opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:hover:bg-black/5 dark:sm:hover:bg-white/5 transition-all ${isDarkMode ? "text-zinc-400" : "text-stone-400"}`}
+        onPointerDown={(e) => dragControls.start(e)}
+        title="Drag to reorder"
+      >
+        <GripVertical size={18} />
+      </div>
+
       {/* Type Badge */}
       {activeType.id !== 'normal' && !isEditing && (
         <div className="absolute -top-3 left-4 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-inherit border flex items-center gap-1">
@@ -243,7 +259,7 @@ Please act as an expert researcher and author assistant. Conduct a deep, compreh
           </button>
         </div>
       )}
-    </article>
+    </Reorder.Item>
   );
 }
 
@@ -448,6 +464,22 @@ export default function BookEditor() {
     setBlocks((prev) => prev.map((b) => b.id === id ? { ...b, note_type: newType } : b));
     const supabase = createClient();
     await supabase.from("blocks").update({ note_type: newType }).eq("id", id);
+  };
+
+  const saveNewOrder = async (reorderedBlocks: Block[]) => {
+    const supabase = createClient();
+    // Optimistic UI update already handled by Framer Motion's onReorder.
+    // Now persist to DB. We can send concurrent updates for all blocks that changed index.
+    // To simplify and ensure correctness, update all blocks with their new array index.
+    const promises = reorderedBlocks.map((block, index) => 
+      supabase.from("blocks").update({ order_index: index }).eq("id", block.id)
+    );
+    await Promise.all(promises);
+  };
+
+  const handleReorder = (newBlocks: Block[]) => {
+    setBlocks(newBlocks);
+    saveNewOrder(newBlocks);
   };
 
   const startEdit = (id: string) => {
@@ -837,9 +869,10 @@ export default function BookEditor() {
             </div>
           )}
 
-        {blocks.map((block) => (
-          <div key={block.id} className="group">
+        <Reorder.Group axis="y" values={blocks} onReorder={handleReorder} as="div" className="space-y-5 w-full">
+          {blocks.map((block) => (
             <TextBlock
+              key={block.id}
               block={block}
               isDarkMode={isDarkMode}
               isEditing={editingBlockId === block.id}
@@ -851,8 +884,8 @@ export default function BookEditor() {
               onChangeNoteType={handleChangeNoteType}
               onDelete={() => setBlockToDelete(block)}
             />
-          </div>
-        ))}
+          ))}
+        </Reorder.Group>
 
         <div ref={bottomAnchorRef} className="h-40" aria-hidden />
       </main>

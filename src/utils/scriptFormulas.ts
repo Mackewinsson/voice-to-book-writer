@@ -145,6 +145,42 @@ export const scriptFormulas: ScriptFormula[] = [
     ]
   },
   {
+    id: "viral-reels-question-hook",
+    title: "Viral Short Form (Question Hook)",
+    description: "Start with an open loop question ('Have you ever wondered why X happens?'). Immediately engages the viewer's brain.",
+    chapters: [
+      { title: "1. The Question Hook (0-3s)", description: "Ask a highly relatable or bizarre question.", detailedDescription: "Examples: 'Have you ever wondered why [common phenomenon] happens?', 'Are you still doing [action] every day?'. The brain is hardwired to seek answers to questions, preventing them from scrolling." },
+      { title: "2. The Setup / Retain (3-10s)", description: "Justify the hook.", detailedDescription: "Tell the viewer exactly why they need to keep watching. Validate the hook and raise the stakes or introduce a relatable problem." },
+      { title: "3. The Value Delivery (10-45s)", description: "Deliver the payoff quickly.", detailedDescription: "Give the advice, tell the story, or show the process. Cut out all fluff and pauses. Use fast pacing and visual changes to maintain retention." },
+      { title: "4. The Twist (45-55s)", description: "Give one last unexpected tip.", detailedDescription: "Just when they think the video is over, provide a bonus tip or an unexpected twist. This prevents people from swiping away early." },
+      { title: "5. Call to Action (55-60s)", description: "Tell them exactly what to do.", detailedDescription: "Give a single, clear directive: 'Save this for later', 'Follow for part 2', or 'Comment X for the link'." }
+    ]
+  },
+  {
+    id: "viral-reels-contrarian-hook",
+    title: "Viral Short Form (Contrarian Hook)",
+    description: "State an unpopular opinion or go against common advice ('X is a scam, do this instead'). Sparks immediate debate.",
+    chapters: [
+      { title: "1. The Contrarian Hook (0-3s)", description: "State an unpopular opinion.", detailedDescription: "Examples: '[Common advice] is actually ruining your [goal]', 'Stop doing [popular trend], it's a scam', 'Everyone tells you to do X, but they are wrong'. This polarizes the audience and drives massive engagement." },
+      { title: "2. The Setup / Retain (3-10s)", description: "Justify the hook.", detailedDescription: "Tell the viewer exactly why they need to keep watching. Validate the hook and raise the stakes or introduce a relatable problem." },
+      { title: "3. The Value Delivery (10-45s)", description: "Deliver the payoff quickly.", detailedDescription: "Give the advice, tell the story, or show the process. Cut out all fluff and pauses. Use fast pacing and visual changes to maintain retention." },
+      { title: "4. The Twist (45-55s)", description: "Give one last unexpected tip.", detailedDescription: "Just when they think the video is over, provide a bonus tip or an unexpected twist. This prevents people from swiping away early." },
+      { title: "5. Call to Action (55-60s)", description: "Tell them exactly what to do.", detailedDescription: "Give a single, clear directive: 'Save this for later', 'Follow for part 2', or 'Comment X for the link'." }
+    ]
+  },
+  {
+    id: "viral-reels-result-hook",
+    title: "Viral Short Form (Result/Proof First Hook)",
+    description: "Show the incredible end result first, then explain how you got there. Best for visual niches (fitness, art, tech).",
+    chapters: [
+      { title: "1. The Result Hook (0-3s)", description: "Show the incredible end result immediately.", detailedDescription: "Examples: 'Here is how I achieved [insane result] in just [timeframe]', 'I built this [amazing thing] using only [tool]'. Showing undeniable proof first instantly builds credibility and curiosity." },
+      { title: "2. The Setup / Retain (3-10s)", description: "Justify the hook.", detailedDescription: "Tell the viewer exactly why they need to keep watching. Validate the hook and raise the stakes or introduce a relatable problem." },
+      { title: "3. The Value Delivery (10-45s)", description: "Deliver the payoff quickly.", detailedDescription: "Give the advice, tell the story, or show the process. Cut out all fluff and pauses. Use fast pacing and visual changes to maintain retention." },
+      { title: "4. The Twist (45-55s)", description: "Give one last unexpected tip.", detailedDescription: "Just when they think the video is over, provide a bonus tip or an unexpected twist. This prevents people from swiping away early." },
+      { title: "5. Call to Action (55-60s)", description: "Tell them exactly what to do.", detailedDescription: "Give a single, clear directive: 'Save this for later', 'Follow for part 2', or 'Comment X for the link'." }
+    ]
+  },
+  {
     id: "pas-copywriting",
     title: "PAS (Copywriting & Ads)",
     description: "Problem, Agitate, Solution. The most effective formula for ads, emails, and sales copy.",

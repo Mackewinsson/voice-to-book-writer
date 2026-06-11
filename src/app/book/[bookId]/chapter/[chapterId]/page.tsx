@@ -15,6 +15,7 @@ import { UserButton, useAuth } from "@clerk/nextjs";
 import { createClient } from "@/utils/supabase/client";
 import PaywallModal from "@/components/PaywallModal";
 import ConfirmModal from "@/components/ConfirmModal";
+import ScoreWidget from "@/components/ScoreWidget";
 
 type Block = { id: string; text: string; note_type?: string };
 
@@ -292,6 +293,10 @@ export default function BookEditor() {
   const [chapterTitle, setChapterTitle] = useState("");
   const [chapterDescription, setChapterDescription] = useState<string | null>(null);
   const [chapterDetailedDescription, setChapterDetailedDescription] = useState<string | null>(null);
+  const [projectType, setProjectType] = useState<string | null>(null);
+  const [hookScore, setHookScore] = useState<number | null>(null);
+  const [hookFeedback, setHookFeedback] = useState<string | null>(null);
+  const [isEvaluatingHook, setIsEvaluatingHook] = useState(false);
   const [isGuideExpanded, setIsGuideExpanded] = useState(false);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [isEditingChapter, setIsEditingChapter] = useState(false);
@@ -349,6 +354,9 @@ export default function BookEditor() {
 
         if (!book) return;
         setBookTitle(book.title);
+        setProjectType(book.project_type);
+        setHookScore(book.hook_score);
+        setHookFeedback(book.hook_feedback);
 
         const { data: chapter, error: chapterErr } = await supabase
           .from("chapters")
@@ -442,6 +450,28 @@ export default function BookEditor() {
     setIsEditingChapter(false);
     const supabase = createClient();
     await supabase.from("chapters").update({ title: finalTitle }).eq("id", chapterId);
+  };
+
+  const handleEvaluateHook = async () => {
+    if (!bookId || !chapterId) return;
+    setIsEvaluatingHook(true);
+    try {
+      const res = await fetch("/api/evaluate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bookId, chapterId, type: "hook" }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Evaluation failed");
+      
+      setHookScore(data.score);
+      setHookFeedback(data.feedback);
+    } catch (error) {
+      console.error(error);
+      alert(error instanceof Error ? error.message : "Failed to evaluate hook.");
+    } finally {
+      setIsEvaluatingHook(false);
+    }
   };
 
   const handleBlockEdit = (id: string, newText: string) => {
@@ -873,6 +903,19 @@ export default function BookEditor() {
                 <p className="leading-relaxed opacity-80">{chapterDetailedDescription}</p>
               </div>
             )}
+          </div>
+        )}
+
+        {projectType === "reel" && chapterTitle.toLowerCase().includes("hook") && (
+          <div className="mb-6">
+            <ScoreWidget
+              title="Hook"
+              score={hookScore}
+              feedback={hookFeedback}
+              isAnalyzing={isEvaluatingHook}
+              isDarkMode={isDarkMode}
+              onAnalyze={handleEvaluateHook}
+            />
           </div>
         )}
 

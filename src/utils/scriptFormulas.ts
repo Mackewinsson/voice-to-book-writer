@@ -97,11 +97,47 @@ export const scriptFormulas: ScriptFormula[] = [
   // SOCIAL MEDIA & SHORT FORM
   // ----------------------------------------------------------------------
   {
-    id: "viral-reels-hook",
-    title: "Viral Short Form (Reels/TikTok)",
-    description: "The proven structure for maximizing retention on short-form video platforms.",
+    id: "viral-reels-negative-hook",
+    title: "Viral Short Form (Negative Hook)",
+    description: "Start by calling out a common mistake ('Stop doing X' or 'Why Y is failing'). Highly effective for retention.",
     chapters: [
-      { title: "1. The Hook (0-3s)", description: "Grab attention instantly!", detailedDescription: "The most crucial part. Use a bold statement ('Stop doing X'), a provocative question, or a strong visual interruption. Never start with 'Hi guys'." },
+      { title: "1. The Negative Hook (0-3s)", description: "Grab attention by calling out a mistake.", detailedDescription: "Examples in your current language: 'Stop doing [action]', 'This is why your [goal] is failing', 'You are doing [action] wrong'. This triggers loss aversion." },
+      { title: "2. The Setup / Retain (3-10s)", description: "Justify the hook.", detailedDescription: "Tell the viewer exactly why they need to keep watching. Validate the hook and raise the stakes or introduce a relatable problem." },
+      { title: "3. The Value Delivery (10-45s)", description: "Deliver the payoff quickly.", detailedDescription: "Give the advice, tell the story, or show the process. Cut out all fluff and pauses. Use fast pacing and visual changes to maintain retention." },
+      { title: "4. The Twist (45-55s)", description: "Give one last unexpected tip.", detailedDescription: "Just when they think the video is over, provide a bonus tip or an unexpected twist. This prevents people from swiping away early." },
+      { title: "5. Call to Action (55-60s)", description: "Tell them exactly what to do.", detailedDescription: "Give a single, clear directive: 'Save this for later', 'Follow for part 2', or 'Comment X for the link'." }
+    ]
+  },
+  {
+    id: "viral-reels-curiosity-hook",
+    title: "Viral Short Form (Curiosity Hook)",
+    description: "Start with a secret or revelation ('The secret to X nobody tells you'). Builds immense intrigue.",
+    chapters: [
+      { title: "1. The Curiosity Hook (0-3s)", description: "Tease a secret or revelation.", detailedDescription: "Examples in your current language: 'The secret to [desired result] nobody tells you', 'I found a hidden trick to [achieve goal]', 'Watch this before you [action]'. Make them feel like they are missing out on insider knowledge." },
+      { title: "2. The Setup / Retain (3-10s)", description: "Justify the hook.", detailedDescription: "Tell the viewer exactly why they need to keep watching. Validate the hook and raise the stakes or introduce a relatable problem." },
+      { title: "3. The Value Delivery (10-45s)", description: "Deliver the payoff quickly.", detailedDescription: "Give the advice, tell the story, or show the process. Cut out all fluff and pauses. Use fast pacing and visual changes to maintain retention." },
+      { title: "4. The Twist (45-55s)", description: "Give one last unexpected tip.", detailedDescription: "Just when they think the video is over, provide a bonus tip or an unexpected twist. This prevents people from swiping away early." },
+      { title: "5. Call to Action (55-60s)", description: "Tell them exactly what to do.", detailedDescription: "Give a single, clear directive: 'Save this for later', 'Follow for part 2', or 'Comment X for the link'." }
+    ]
+  },
+  {
+    id: "viral-reels-value-hook",
+    title: "Viral Short Form (Listicle/Value Hook)",
+    description: "Start with a clear promise of value ('3 ways to achieve X'). Perfect for educational content.",
+    chapters: [
+      { title: "1. The Value Hook (0-3s)", description: "Promise a specific number of tips.", detailedDescription: "Examples in your current language: '3 tools you need to [achieve goal]', 'Here are 5 ways to [solve problem]', 'The top 3 mistakes to avoid in [topic]'. Sets a clear expectation." },
+      { title: "2. The Setup / Retain (3-10s)", description: "Justify the hook.", detailedDescription: "Tell the viewer exactly why they need to keep watching. Validate the hook and raise the stakes or introduce a relatable problem." },
+      { title: "3. The Value Delivery (10-45s)", description: "Deliver the payoff quickly.", detailedDescription: "Give the advice, tell the story, or show the process. Cut out all fluff and pauses. Use fast pacing and visual changes to maintain retention." },
+      { title: "4. The Twist (45-55s)", description: "Give one last unexpected tip.", detailedDescription: "Just when they think the video is over, provide a bonus tip or an unexpected twist. This prevents people from swiping away early." },
+      { title: "5. Call to Action (55-60s)", description: "Tell them exactly what to do.", detailedDescription: "Give a single, clear directive: 'Save this for later', 'Follow for part 2', or 'Comment X for the link'." }
+    ]
+  },
+  {
+    id: "viral-reels-story-hook",
+    title: "Viral Short Form (Story Hook)",
+    description: "Start with a relatable or shocking personal experience ('I tried X for 30 days...'). Great for vlogs.",
+    chapters: [
+      { title: "1. The Story Hook (0-3s)", description: "Introduce a personal story or challenge.", detailedDescription: "Examples in your current language: 'I tried [challenge] for 30 days, here's what happened', 'This is how I went from [state A] to [state B]', 'I made a terrible mistake doing [action]'. Instantly connects emotionally." },
       { title: "2. The Setup / Retain (3-10s)", description: "Justify the hook.", detailedDescription: "Tell the viewer exactly why they need to keep watching. Validate the hook and raise the stakes or introduce a relatable problem." },
       { title: "3. The Value Delivery (10-45s)", description: "Deliver the payoff quickly.", detailedDescription: "Give the advice, tell the story, or show the process. Cut out all fluff and pauses. Use fast pacing and visual changes to maintain retention." },
       { title: "4. The Twist (45-55s)", description: "Give one last unexpected tip.", detailedDescription: "Just when they think the video is over, provide a bonus tip or an unexpected twist. This prevents people from swiping away early." },

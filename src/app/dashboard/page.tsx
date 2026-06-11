@@ -140,7 +140,7 @@ export default function Dashboard() {
     
     const { data: book, error: bookErr } = await supabase
       .from("books")
-      .insert({ title: "Untitled Script", user_id: userId })
+      .insert({ title: "Untitled Script", user_id: userId, project_type: "reel" })
       .select()
       .single();
 

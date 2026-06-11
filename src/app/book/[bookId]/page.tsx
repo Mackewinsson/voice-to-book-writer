@@ -7,8 +7,9 @@ import { useParams, useRouter } from "next/navigation";
 import { UserButton, useAuth } from "@clerk/nextjs";
 import Link from "next/link";
 import ConfirmModal from "@/components/ConfirmModal";
+import ScoreWidget from "@/components/ScoreWidget";
 
-type BookRecord = { id: string; title: string };
+type BookRecord = { id: string; title: string; project_type?: string; script_score?: number; script_feedback?: string; };
 type ChapterRecord = { id: string; title: string; created_at: string; word_count?: number };
 type BlockRecord = { id: string; chapter_id: string; content: string; note_type: string; order_index: number; };
 
@@ -30,6 +31,7 @@ export default function ChapterList() {
   const [viewMode, setViewMode] = useState<"list" | "manuscript">("list");
   const [allBlocks, setAllBlocks] = useState<BlockRecord[]>([]);
   const [isLoadingManuscript, setIsLoadingManuscript] = useState(false);
+  const [isEvaluatingScript, setIsEvaluatingScript] = useState(false);
 
   const handleTitleSave = async (newTitle: string) => {
     const finalTitle = newTitle.trim() || "Untitled Draft";
@@ -242,6 +244,31 @@ export default function ChapterList() {
     }
   };
 
+  const handleEvaluateScript = async () => {
+    if (!bookId || !book) return;
+    setIsEvaluatingScript(true);
+    try {
+      const res = await fetch("/api/evaluate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bookId, type: "script" }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Evaluation failed");
+      
+      setBook({
+        ...book,
+        script_score: data.score,
+        script_feedback: data.feedback
+      });
+    } catch (error) {
+      console.error(error);
+      alert(error instanceof Error ? error.message : "Failed to evaluate script.");
+    } finally {
+      setIsEvaluatingScript(false);
+    }
+  };
+
   return (
     <div className={`min-h-screen flex flex-col font-sans transition-colors duration-300 ${isDarkMode ? "bg-[#0c0c0e] text-zinc-100" : "bg-[#f7f4ef] text-stone-900"}`}>
       <div className={`pointer-events-none fixed inset-0 ${isDarkMode ? "bg-[radial-gradient(ellipse_at_top,_rgba(120,90,50,0.08),_transparent_55%)]" : "bg-[radial-gradient(ellipse_at_top,_rgba(180,140,90,0.12),_transparent_55%)]"}`} aria-hidden />
@@ -356,6 +383,18 @@ export default function ChapterList() {
             </div>
           ) : (
             <div className={`max-w-2xl mx-auto py-8 space-y-16 ${isDarkMode ? "text-zinc-300" : "text-stone-800"} text-lg leading-relaxed font-serif`}>
+              {book?.project_type === "reel" && (
+                <div className="font-sans mb-8">
+                  <ScoreWidget
+                    title="Script"
+                    score={book.script_score || null}
+                    feedback={book.script_feedback || null}
+                    isAnalyzing={isEvaluatingScript}
+                    isDarkMode={isDarkMode}
+                    onAnalyze={handleEvaluateScript}
+                  />
+                </div>
+              )}
               {chapters.map(chapter => {
                 const chapterBlocks = allBlocks.filter(b => b.chapter_id === chapter.id);
                 return (

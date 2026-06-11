@@ -8,6 +8,7 @@ import { UserButton, useAuth } from "@clerk/nextjs";
 import Link from "next/link";
 import ConfirmModal from "@/components/ConfirmModal";
 import CreateProjectModal from "@/components/CreateProjectModal";
+import { scriptFormulas } from "@/utils/scriptFormulas";
 
 type BookRecord = { id: string; title: string; created_at: string; word_count?: number };
 
@@ -122,6 +123,47 @@ export default function Dashboard() {
     }
 
     // Navigate to editor
+    router.push(`/book/${book.id}`);
+  };
+
+  const handleCreateScript = async (formulaId: string) => {
+    if (!userId) return;
+    setIsCreating(true);
+    
+    const formula = scriptFormulas.find(f => f.id === formulaId);
+    if (!formula) {
+      setIsCreating(false);
+      return;
+    }
+
+    const supabase = createClient();
+    
+    const { data: book, error: bookErr } = await supabase
+      .from("books")
+      .insert({ title: "Untitled Script", user_id: userId })
+      .select()
+      .single();
+
+    if (bookErr || !book) {
+      console.error("Failed to create script project", bookErr);
+      setIsCreating(false);
+      return;
+    }
+
+    // Create chapters sequentially to maintain order via created_at
+    for (const chapterTitle of formula.chapters) {
+      const { error: chapterErr } = await supabase
+        .from("chapters")
+        .insert({ book_id: book.id, title: chapterTitle });
+        
+      if (chapterErr) {
+        console.error(`Failed to create chapter: ${chapterTitle}`, chapterErr);
+      }
+      
+      // tiny delay to ensure created_at ordering if supabase resolution is low
+      await new Promise(resolve => setTimeout(resolve, 50));
+    }
+
     router.push(`/book/${book.id}`);
   };
 
@@ -261,6 +303,7 @@ export default function Dashboard() {
         isLoading={isCreating}
         onClose={() => setIsProjectTypeModalOpen(false)}
         onSelectBook={handleCreateProject}
+        onSelectScript={handleCreateScript}
       />
     </div>
   );

@@ -9,6 +9,7 @@ import Link from "next/link";
 import ConfirmModal from "@/components/ConfirmModal";
 import CreateProjectModal from "@/components/CreateProjectModal";
 import { scriptFormulas } from "@/utils/scriptFormulas";
+import { learnLessons } from "@/utils/learnLessons";
 
 type BookRecord = { id: string; title: string; created_at: string; word_count?: number };
 
@@ -167,6 +168,46 @@ export default function Dashboard() {
     router.push(`/book/${book.id}`);
   };
 
+  const handleCreateLearnProject = async () => {
+    if (!userId) return;
+    setIsCreating(true);
+
+    const supabase = createClient();
+    
+    const { data: book, error: bookErr } = await supabase
+      .from("books")
+      .insert({ title: "My Learning Journey", user_id: userId, project_type: "learn" })
+      .select()
+      .single();
+
+    if (bookErr || !book) {
+      console.error("Failed to create learn project", bookErr);
+      setIsCreating(false);
+      return;
+    }
+
+    // Create chapters sequentially for the predefined lessons
+    for (const lesson of learnLessons) {
+      const { error: chapterErr } = await supabase
+        .from("chapters")
+        .insert({ 
+          book_id: book.id, 
+          title: lesson.title, 
+          description: lesson.description, 
+          detailed_description: lesson.detailedDescription 
+        });
+        
+      if (chapterErr) {
+        console.error(`Failed to create lesson: ${lesson.title}`, chapterErr);
+      }
+      
+      // tiny delay to ensure created_at ordering
+      await new Promise(resolve => setTimeout(resolve, 50));
+    }
+
+    router.push(`/book/${book.id}`);
+  };
+
   return (
     <div className={`min-h-screen flex flex-col font-sans transition-colors duration-300 ${isDarkMode ? "bg-[#0c0c0e] text-zinc-100" : "bg-[#f7f4ef] text-stone-900"}`}>
       <div className={`pointer-events-none fixed inset-0 ${isDarkMode ? "bg-[radial-gradient(ellipse_at_top,_rgba(120,90,50,0.08),_transparent_55%)]" : "bg-[radial-gradient(ellipse_at_top,_rgba(180,140,90,0.12),_transparent_55%)]"}`} aria-hidden />
@@ -304,6 +345,7 @@ export default function Dashboard() {
         onClose={() => setIsProjectTypeModalOpen(false)}
         onSelectBook={handleCreateProject}
         onSelectScript={handleCreateScript}
+        onSelectLearn={handleCreateLearnProject}
       />
     </div>
   );

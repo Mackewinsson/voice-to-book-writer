@@ -1,0 +1,3 @@
+ALTER TABLE chapters ADD COLUMN is_passed BOOLEAN DEFAULT false;
+ALTER TABLE chapters ADD COLUMN lesson_score INTEGER DEFAULT NULL;
+ALTER TABLE chapters ADD COLUMN lesson_feedback TEXT DEFAULT NULL;

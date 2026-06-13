@@ -39,10 +39,16 @@ export async function POST(req: Request) {
 
     // Fetch the text to evaluate
     let textToEvaluate = "";
-    if (type === "hook") {
-      if (!chapterId) return NextResponse.json({ error: "chapterId required for hook evaluation" }, { status: 400 });
+    let lessonInstructions = "";
+    if (type === "hook" || type === "lesson") {
+      if (!chapterId) return NextResponse.json({ error: "chapterId required for this evaluation" }, { status: 400 });
       const { data: blocks } = await supabase.from("blocks").select("content").eq("chapter_id", chapterId).order("order_index", { ascending: true });
       textToEvaluate = blocks?.map(b => b.content).join("\n") || "";
+      
+      if (type === "lesson") {
+        const { data: chapter } = await supabase.from("chapters").select("detailed_description").eq("id", chapterId).single();
+        lessonInstructions = chapter?.detailed_description || "Evaluate if the content is engaging and well-written.";
+      }
     } else {
       // script
       const { data: chapters } = await supabase.from("chapters").select("id").eq("book_id", bookId);
@@ -65,9 +71,14 @@ export async function POST(req: Request) {
       }
     });
 
-    const systemPrompt = type === "hook" 
-      ? "You are an expert social media strategist and copywriter. Evaluate the following 'hook' (the first few seconds of a short-form video script). Rate it from 0 to 100 based on its ability to instantly grab attention, trigger curiosity or emotion, and retain the viewer. Provide a short, constructive paragraph of feedback. RETURN JSON ONLY with keys 'score' (number) and 'feedback' (string)."
-      : "You are an expert social media strategist and copywriter. Evaluate the following full short-form video script. Rate it from 0 to 100 based on its pacing, value delivery, retention mechanics, and call to action. Provide a short, constructive paragraph of feedback. RETURN JSON ONLY with keys 'score' (number) and 'feedback' (string).";
+    let systemPrompt = "";
+    if (type === "hook") {
+      systemPrompt = "You are an expert social media strategist and copywriter. Evaluate the following 'hook' (the first few seconds of a short-form video script). Rate it from 0 to 100 based on its ability to instantly grab attention, trigger curiosity or emotion, and retain the viewer. Provide a short, constructive paragraph of feedback. RETURN JSON ONLY with keys 'score' (number) and 'feedback' (string).";
+    } else if (type === "lesson") {
+      systemPrompt = `You are a strict but encouraging writing coach. Evaluate the user's text based strictly on the following lesson challenge:\n"${lessonInstructions}"\n\nRate the submission from 0 to 100 based on how well it achieves the specific goal of the challenge. Be constructive. RETURN JSON ONLY with keys 'score' (number) and 'feedback' (string).`;
+    } else {
+      systemPrompt = "You are an expert social media strategist and copywriter. Evaluate the following full short-form video script. Rate it from 0 to 100 based on its pacing, value delivery, retention mechanics, and call to action. Provide a short, constructive paragraph of feedback. RETURN JSON ONLY with keys 'score' (number) and 'feedback' (string).";
+    }
 
     const prompt = `${systemPrompt}\n\n[CONTENT TO EVALUATE]\n${textToEvaluate}\n[/CONTENT TO EVALUATE]`;
 
@@ -81,6 +92,12 @@ export async function POST(req: Request) {
         hook_score: evaluation.score,
         hook_feedback: evaluation.feedback
       }).eq("id", bookId);
+    } else if (type === "lesson") {
+      await supabase.from("chapters").update({
+        lesson_score: evaluation.score,
+        lesson_feedback: evaluation.feedback,
+        is_passed: evaluation.score >= 80 ? true : false
+      }).eq("id", chapterId);
     } else {
       await supabase.from("books").update({
         script_score: evaluation.score,

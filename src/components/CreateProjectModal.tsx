@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Book, FileText, FlaskConical, Share2, X, Loader2, Scroll, ChevronLeft } from "lucide-react";
+import { Book, FileText, FlaskConical, Share2, X, Loader2, Scroll, ChevronLeft, GraduationCap } from "lucide-react";
 import { scriptFormulas } from "@/utils/scriptFormulas";
 
 interface CreateProjectModalProps {
@@ -12,6 +12,7 @@ interface CreateProjectModalProps {
   onClose: () => void;
   onSelectBook: () => void;
   onSelectScript?: (formulaId: string) => void;
+  onSelectLearn?: () => void;
 }
 
 export default function CreateProjectModal({
@@ -21,6 +22,7 @@ export default function CreateProjectModal({
   onClose,
   onSelectBook,
   onSelectScript,
+  onSelectLearn,
 }: CreateProjectModalProps) {
   const [step, setStep] = useState<"type" | "formula">("type");
 
@@ -46,6 +48,13 @@ export default function CreateProjectModal({
       title: "Script",
       description: "Write screenplays and scripts with structured formulas.",
       icon: Scroll,
+      disabled: false,
+    },
+    {
+      id: "learn",
+      title: "Learn Mode",
+      description: "Complete challenges and learn how to write better content.",
+      icon: GraduationCap,
       disabled: false,
     },
     {
@@ -130,6 +139,7 @@ export default function CreateProjectModal({
                     onClick={() => {
                       if (option.id === "book") onSelectBook();
                       else if (option.id === "script") setStep("formula");
+                      else if (option.id === "learn" && onSelectLearn) onSelectLearn();
                     }}
                     className={`relative flex flex-col text-left p-5 rounded-2xl border transition-all ${
                       option.disabled
@@ -152,9 +162,11 @@ export default function CreateProjectModal({
                     <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-4 ${
                       option.disabled
                         ? isDarkMode ? "bg-zinc-800 text-zinc-500" : "bg-stone-200 text-stone-400"
-                        : "bg-gradient-to-br from-amber-400 to-amber-600 text-stone-900 shadow-lg shadow-amber-500/20"
+                        : option.id === "learn"
+                          ? "bg-gradient-to-br from-indigo-400 to-indigo-600 text-white shadow-lg shadow-indigo-500/20"
+                          : "bg-gradient-to-br from-amber-400 to-amber-600 text-stone-900 shadow-lg shadow-amber-500/20"
                     }`}>
-                      {isLoading && option.id === "book" ? (
+                      {isLoading && (option.id === "book" || option.id === "learn") ? (
                         <Loader2 size={20} className="animate-spin" />
                       ) : (
                         <option.icon size={20} />

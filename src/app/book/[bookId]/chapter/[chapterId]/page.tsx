@@ -397,6 +397,10 @@ export default function BookEditor() {
   const [hookScore, setHookScore] = useState<number | null>(null);
   const [hookFeedback, setHookFeedback] = useState<string | null>(null);
   const [isEvaluatingHook, setIsEvaluatingHook] = useState(false);
+  const [lessonScore, setLessonScore] = useState<number | null>(null);
+  const [lessonFeedback, setLessonFeedback] = useState<string | null>(null);
+  const [isPassed, setIsPassed] = useState<boolean>(false);
+  const [isEvaluatingLesson, setIsEvaluatingLesson] = useState(false);
   const [isGuideExpanded, setIsGuideExpanded] = useState(false);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [isEditingChapter, setIsEditingChapter] = useState(false);
@@ -471,6 +475,9 @@ export default function BookEditor() {
         setChapterTitle(chapter.title);
         setChapterDescription(chapter.description);
         setChapterDetailedDescription(chapter.detailed_description);
+        setLessonScore(chapter.lesson_score);
+        setLessonFeedback(chapter.lesson_feedback);
+        setIsPassed(chapter.is_passed);
 
         const { data: fetchedBlocks, error: blocksErr } = await supabase
           .from("blocks")
@@ -571,6 +578,31 @@ export default function BookEditor() {
       alert(error instanceof Error ? error.message : "Failed to evaluate hook.");
     } finally {
       setIsEvaluatingHook(false);
+    }
+  };
+
+  const handleEvaluateLesson = async () => {
+    if (!bookId || !chapterId) return;
+    setIsEvaluatingLesson(true);
+    try {
+      const res = await fetch("/api/evaluate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bookId, chapterId, type: "lesson" }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Evaluation failed");
+      
+      setLessonScore(data.score);
+      setLessonFeedback(data.feedback);
+      if (data.score >= 80) {
+        setIsPassed(true);
+      }
+    } catch (error) {
+      console.error(error);
+      alert(error instanceof Error ? error.message : "Failed to evaluate lesson.");
+    } finally {
+      setIsEvaluatingLesson(false);
     }
   };
 
@@ -1059,6 +1091,32 @@ export default function BookEditor() {
               isDarkMode={isDarkMode}
               onAnalyze={handleEvaluateHook}
             />
+          </div>
+        )}
+
+        {projectType === "learn" && (
+          <div className="mb-6 space-y-4">
+            <ScoreWidget
+              title="Challenge"
+              score={lessonScore}
+              feedback={lessonFeedback}
+              isAnalyzing={isEvaluatingLesson}
+              isDarkMode={isDarkMode}
+              onAnalyze={handleEvaluateLesson}
+            />
+            {isPassed && (
+              <div className="flex justify-center pt-4">
+                <Link
+                  href={`/book/${bookId}`}
+                  className={`px-6 py-3 rounded-full font-bold flex items-center gap-2 transition-transform hover:scale-105 active:scale-95 shadow-lg ${
+                    isDarkMode ? "bg-green-500 text-black shadow-green-500/20 hover:bg-green-400" : "bg-green-500 text-white shadow-green-500/30 hover:bg-green-600"
+                  }`}
+                >
+                  <Check size={20} />
+                  Challenge Passed! Back to Lessons
+                </Link>
+              </div>
+            )}
           </div>
         )}
 

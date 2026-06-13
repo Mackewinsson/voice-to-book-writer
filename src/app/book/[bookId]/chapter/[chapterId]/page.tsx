@@ -585,10 +585,38 @@ export default function BookEditor() {
     let stream: MediaStream;
     try {
       // Must be called immediately to preserve user gesture on Safari Mobile
-      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    } catch (err) {
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      } else {
+        // Fallback for older browsers
+        const getUserMedia = (navigator as any).getUserMedia || 
+                             (navigator as any).webkitGetUserMedia || 
+                             (navigator as any).mozGetUserMedia || 
+                             (navigator as any).msGetUserMedia;
+                             
+        if (getUserMedia) {
+          stream = await new Promise((resolve, reject) => {
+            getUserMedia.call(navigator, { audio: true }, resolve, reject);
+          });
+        } else {
+          throw new Error("Microphone API not supported in this browser.");
+        }
+      }
+    } catch (err: any) {
       console.error("Error accessing microphone:", err);
-      alert("No se pudo acceder al micrófono. Por favor, asegúrate de dar permiso en la configuración de tu navegador/dispositivo y recarga la página.");
+      let errorMsg = "No se pudo acceder al micrófono.";
+      
+      if (err.name === 'NotAllowedError' || err.name === 'SecurityError') {
+        errorMsg += " El acceso fue denegado. Por favor, ve a la configuración de tu dispositivo/navegador y permite el acceso al micrófono para este sitio.";
+      } else if (err.name === 'NotFoundError') {
+        errorMsg += " No se encontró ningún micrófono conectado.";
+      } else if (err.name === 'NotReadableError') {
+        errorMsg += " El micrófono está siendo usado por otra aplicación.";
+      } else {
+        errorMsg += ` Detalles: ${err.name || err.message || "Error desconocido"}`;
+      }
+      
+      alert(errorMsg);
       return;
     }
 

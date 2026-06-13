@@ -39,7 +39,7 @@ export default function ScoreWidget({
         isDarkMode 
           ? "bg-zinc-900/40 border-zinc-800/80 hover:bg-zinc-900/60" 
           : "bg-white/40 border-stone-200/80 hover:bg-white/60"
-      } backdrop-blur-md flex items-center justify-between`}>
+      } backdrop-blur-md flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between`}>
         <div>
           <h3 className={`font-semibold text-lg tracking-tight ${isDarkMode ? "text-zinc-200" : "text-stone-800"}`}>
             Evaluate {title}
@@ -50,7 +50,7 @@ export default function ScoreWidget({
         </div>
         <button
           onClick={onAnalyze}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold transition-all shadow-lg ${
+          className={`flex w-full sm:w-auto items-center justify-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold transition-all shadow-lg ${
             isDarkMode
               ? "bg-gradient-to-r from-violet-600 to-indigo-600 text-white hover:shadow-indigo-500/25"
               : "bg-gradient-to-r from-violet-500 to-indigo-500 text-white hover:shadow-indigo-500/30"

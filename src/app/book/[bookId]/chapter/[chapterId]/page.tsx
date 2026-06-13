@@ -85,7 +85,7 @@ function TranscriptionSkeleton({ isDarkMode }: { isDarkMode: boolean }) {
 
   return (
     <article
-      className={`relative rounded-xl border p-4 pr-12 transition-colors ${cardClass} w-full backdrop-blur-md`}
+      className={`relative rounded-xl border p-3 pr-3 sm:p-4 sm:pr-12 transition-colors ${cardClass} w-full backdrop-blur-md`}
     >
       <div className="animate-pulse space-y-3">
         <p className={`text-sm italic ${labelClass} mb-2`}>Transcribiendo...</p>
@@ -177,6 +177,15 @@ Please act as an expert researcher and author assistant. Conduct a deep, compreh
   const activeType = NOTE_TYPES.find(t => t.id === (block.note_type || 'normal')) || NOTE_TYPES[0];
   const TypeIcon = activeType.icon;
 
+  const askAiBtnClass = isCopied
+    ? "text-green-500 bg-green-500/10 border-green-500/20"
+    : isDarkMode
+      ? "text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 border-amber-500/20"
+      : "text-amber-700 bg-amber-50 hover:bg-amber-100 border-amber-200";
+  const deleteBtnClass = isDarkMode
+    ? "text-zinc-500 hover:text-red-400 hover:bg-red-500/10"
+    : "text-stone-400 hover:text-red-500 hover:bg-red-50";
+
   return (
     <Reorder.Item
       as="article"
@@ -184,15 +193,15 @@ Please act as an expert researcher and author assistant. Conduct a deep, compreh
       id={block.id}
       dragListener={false}
       dragControls={dragControls}
-      className={`group relative rounded-xl border p-4 pl-12 pr-12 transition-colors ${cardClass} ${
+      className={`group relative flex flex-col rounded-xl border p-3 pl-9 pr-3 sm:p-4 sm:pl-12 sm:pr-12 transition-colors ${cardClass} ${
         activeType.id !== 'normal' ? activeType.color : ''
       } ${
         isHighlighted ? "block-highlight" : ""
       } ${isHighlighted ? "block-enter" : ""}`}
     >
       {/* Drag Handle */}
-      <div 
-        className={`absolute left-3 top-1/2 -translate-y-1/2 p-1.5 cursor-grab active:cursor-grabbing rounded-md opacity-20 hover:opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:hover:bg-black/5 dark:sm:hover:bg-white/5 transition-all ${isDarkMode ? "text-zinc-400" : "text-stone-400"}`}
+      <div
+        className={`absolute left-2 sm:left-3 top-1/2 -translate-y-1/2 p-1.5 cursor-grab active:cursor-grabbing rounded-md opacity-20 hover:opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:hover:bg-black/5 dark:sm:hover:bg-white/5 transition-all ${isDarkMode ? "text-zinc-400" : "text-stone-400"}`}
         onPointerDown={(e) => dragControls.start(e)}
         title="Drag to reorder"
       >
@@ -209,8 +218,7 @@ Please act as an expert researcher and author assistant. Conduct a deep, compreh
 
       {isEditing ? (
         <div className="flex flex-col gap-2">
-          {/* Note Type Selector */}
-          <div className="flex flex-wrap gap-2 mb-2">
+          <div className="flex flex-wrap gap-2 pb-1">
             {NOTE_TYPES.map(nt => {
               const Icon = nt.icon;
               return (
@@ -219,7 +227,7 @@ Please act as an expert researcher and author assistant. Conduct a deep, compreh
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => onChangeNoteType(block.id, nt.id)}
                   className={`flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-md border transition-all ${
-                    (block.note_type || 'normal') === nt.id 
+                    (block.note_type || 'normal') === nt.id
                       ? isDarkMode ? 'bg-zinc-700 border-zinc-600 text-white' : 'bg-stone-200 border-stone-300 text-stone-900'
                       : isDarkMode ? 'border-transparent text-zinc-400 hover:bg-zinc-800' : 'border-transparent text-stone-500 hover:bg-stone-100'
                   }`}
@@ -248,42 +256,86 @@ Please act as an expert researcher and author assistant. Conduct a deep, compreh
               }
             }}
             rows={1}
-            className={`w-full resize-none overflow-hidden bg-transparent outline-none leading-7 text-xl font-normal transition-colors ${editingTextClass}`}
+            className={`w-full resize-none overflow-hidden bg-transparent outline-none text-base leading-relaxed sm:text-xl sm:leading-7 font-normal transition-colors ${editingTextClass}`}
           />
         </div>
       ) : (
         <p
-          className={`whitespace-pre-wrap leading-7 text-xl font-normal transition-colors ${lockedTextClass}`}
+          className={`whitespace-pre-wrap text-base leading-relaxed sm:text-xl sm:leading-7 font-normal transition-colors ${lockedTextClass}`}
         >
           {block.text}
         </p>
       )}
 
+      {/* Mobile action bar */}
+      <div
+        className={`mt-3 flex items-center justify-end gap-1 border-t pt-2 sm:hidden ${
+          isDarkMode ? "border-zinc-700/60" : "border-stone-200/80"
+        }`}
+      >
+        {isEditing ? (
+          <button
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={handleLock}
+            aria-label="Lock paragraph"
+            className={`inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg transition-all ${lockBtnClass}`}
+          >
+            <Lock size={15} strokeWidth={1.75} />
+          </button>
+        ) : (
+          <>
+            {block.note_type === 'investigate_later' && (
+              <button
+                type="button"
+                onClick={handleCopyPrompt}
+                aria-label="Copy prompt for AI"
+                title="Copy prompt for AI investigation"
+                className={`inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg border transition-all ${askAiBtnClass}`}
+              >
+                {isCopied ? <Check size={16} strokeWidth={2} /> : <Bot size={16} strokeWidth={2} />}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onStartEdit}
+              aria-label="Edit paragraph"
+              className={`inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg transition-all ${actionBtnClass}`}
+            >
+              <Pencil size={15} strokeWidth={1.75} />
+            </button>
+            <button
+              type="button"
+              onClick={onDelete}
+              aria-label="Delete paragraph"
+              className={`inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg transition-all ${deleteBtnClass}`}
+            >
+              <Trash2 size={15} strokeWidth={1.75} />
+            </button>
+          </>
+        )}
+      </div>
+
+      {/* Desktop action cluster */}
       {isEditing ? (
         <button
           type="button"
           onMouseDown={(e) => e.preventDefault()}
           onClick={handleLock}
           aria-label="Lock paragraph"
-          className={`absolute top-3 right-3 rounded-lg p-2 transition-all ${lockBtnClass}`}
+          className={`absolute top-3 right-3 hidden rounded-lg p-2 transition-all sm:block ${lockBtnClass}`}
         >
           <Lock size={15} strokeWidth={1.75} />
         </button>
       ) : (
-        <div className="absolute top-3 right-3 flex items-center gap-1">
+        <div className="absolute top-3 right-3 hidden items-center gap-1 sm:flex">
           {block.note_type === 'investigate_later' && (
             <button
               type="button"
               onClick={handleCopyPrompt}
               aria-label="Copy prompt for AI"
               title="Copy prompt for AI investigation"
-              className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 focus:opacity-100 transition-all text-xs font-medium border ${
-                isCopied 
-                  ? "text-green-500 bg-green-500/10 border-green-500/20" 
-                  : isDarkMode
-                    ? "text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 border-amber-500/20"
-                    : "text-amber-700 bg-amber-50 hover:bg-amber-100 border-amber-200"
-              }`}
+              className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 opacity-0 transition-all group-hover:opacity-100 focus:opacity-100 text-xs font-medium border ${askAiBtnClass}`}
             >
               {isCopied ? <Check size={14} strokeWidth={2} /> : <Bot size={14} strokeWidth={2} />}
               {isCopied ? "Copied!" : "Ask AI"}
@@ -293,7 +345,7 @@ Please act as an expert researcher and author assistant. Conduct a deep, compreh
             type="button"
             onClick={onStartEdit}
             aria-label="Edit paragraph"
-            className={`rounded-lg p-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 focus:opacity-100 transition-all ${actionBtnClass}`}
+            className={`rounded-lg p-2 opacity-0 transition-all group-hover:opacity-100 focus:opacity-100 ${actionBtnClass}`}
           >
             <Pencil size={15} strokeWidth={1.75} />
           </button>
@@ -301,9 +353,7 @@ Please act as an expert researcher and author assistant. Conduct a deep, compreh
             type="button"
             onClick={onDelete}
             aria-label="Delete paragraph"
-            className={`rounded-lg p-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 focus:opacity-100 transition-all ${
-              isDarkMode ? "text-zinc-500 hover:text-red-400 hover:bg-red-500/10" : "text-stone-400 hover:text-red-500 hover:bg-red-50"
-            }`}
+            className={`rounded-lg p-2 opacity-0 transition-all group-hover:opacity-100 focus:opacity-100 ${deleteBtnClass}`}
           >
             <Trash2 size={15} strokeWidth={1.75} />
           </button>
@@ -881,17 +931,17 @@ export default function BookEditor() {
             : "bg-[#f7f4ef]/85 border-b border-stone-200/80"
         }`}
       >
-        <div className="flex items-center gap-3">
+        <div className="flex min-w-0 flex-1 items-center gap-3">
           <Link
             href={`/book/${bookId}`}
-            className={`p-2 -ml-2 rounded-full transition-colors ${
+            className={`shrink-0 p-2 -ml-2 rounded-full transition-colors ${
               isDarkMode ? "hover:bg-white/10 text-zinc-400 hover:text-zinc-200" : "hover:bg-black/5 text-stone-500 hover:text-stone-700"
             }`}
             aria-label="Back to Chapter List"
           >
             <ChevronLeft size={20} />
           </Link>
-          <div>
+          <div className="min-w-0 flex-1">
             {isEditingTitle ? (
               <input
                 ref={titleInputRef}
@@ -903,25 +953,25 @@ export default function BookEditor() {
                     handleTitleSave(bookTitle);
                   }
                 }}
-                className={`text-[11px] uppercase tracking-[0.22em] font-medium bg-transparent outline-none border-b border-dashed ${
+                className={`w-full max-w-[200px] sm:max-w-none sm:w-auto text-[11px] uppercase tracking-[0.22em] font-medium bg-transparent outline-none border-b border-dashed ${
                   isDarkMode ? "text-zinc-300 border-zinc-500" : "text-stone-700 border-stone-400"
-                } w-32 sm:w-auto`}
+                }`}
                 autoFocus
               />
             ) : (
               <p
                 onClick={() => setIsEditingTitle(true)}
-                className={`text-[11px] uppercase tracking-[0.22em] cursor-pointer hover:opacity-70 transition-opacity flex items-center gap-1 ${
+                className={`text-[11px] uppercase tracking-[0.22em] cursor-pointer hover:opacity-70 transition-opacity flex items-center gap-1 truncate ${
                   isDarkMode ? "text-zinc-500" : "text-stone-500"
                 }`}
                 title="Click to edit project name"
               >
                 {bookTitle || "Untitled Draft"}
-                <Pencil size={10} className="opacity-50" />
+                <Pencil size={10} className="shrink-0 opacity-50" />
               </p>
             )}
-            
-            <div className="flex items-center gap-3">
+
+            <div className="mt-0.5 flex flex-col items-start gap-1 sm:flex-row sm:items-center sm:gap-3">
               {isEditingChapter ? (
                 <input
                   ref={chapterInputRef}
@@ -933,28 +983,28 @@ export default function BookEditor() {
                       handleChapterTitleSave(chapterTitle);
                     }
                   }}
-                  className={`text-xl font-medium tracking-tight mt-0.5 bg-transparent outline-none border-b border-dashed ${
+                  className={`w-full max-w-[200px] sm:max-w-none sm:w-auto text-xl font-medium tracking-tight bg-transparent outline-none border-b border-dashed ${
                     isDarkMode ? "text-zinc-100 border-zinc-500" : "text-stone-900 border-stone-400"
-                  } w-40 sm:w-auto`}
+                  }`}
                   autoFocus
                 />
               ) : (
                 <h1
                   onClick={() => setIsEditingChapter(true)}
-                  className="text-xl font-medium tracking-tight mt-0.5 cursor-pointer hover:opacity-70 transition-opacity flex items-center gap-1.5 group"
+                  className="group max-w-[calc(100vw-8rem)] truncate text-xl font-medium tracking-tight cursor-pointer hover:opacity-70 transition-opacity flex items-center gap-1.5 sm:max-w-none"
                   title="Click to edit chapter name"
                 >
                   {chapterTitle || "Untitled Chapter"}
-                  <Pencil size={14} className="opacity-0 group-hover:opacity-50 transition-opacity" />
+                  <Pencil size={14} className="shrink-0 opacity-50 sm:opacity-0 sm:group-hover:opacity-50 transition-opacity" />
                 </h1>
               )}
-              <span className={`mt-0.5 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${isDarkMode ? "bg-zinc-800 text-zinc-400" : "bg-stone-200 text-stone-500"}`}>
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider shrink-0 ${isDarkMode ? "bg-zinc-800 text-zinc-400" : "bg-stone-200 text-stone-500"}`}>
                 {wordCount.toLocaleString()} palabras
               </span>
             </div>
           </div>
         </div>
-        <div className="flex gap-4 items-center">
+        <div className="flex shrink-0 gap-4 items-center">
           <button
             onClick={toggleDarkMode}
             className={`p-2 rounded-full transition-colors ${
@@ -968,11 +1018,11 @@ export default function BookEditor() {
         </div>
       </header>
 
-      <main className="relative flex-1 overflow-y-auto px-4 sm:px-6 md:max-w-2xl md:mx-auto w-full pb-[50vh] pt-[40vh] space-y-5">
+      <main className="relative flex-1 overflow-y-auto px-4 sm:px-6 md:max-w-2xl md:mx-auto w-full pt-24 pb-44 sm:pt-[30vh] sm:pb-[45vh] md:pt-[40vh] md:pb-[50vh] space-y-5">
         
         {chapterDescription && (
           <div className={`p-4 rounded-xl border mb-6 text-sm backdrop-blur-md ${isDarkMode ? "bg-indigo-500/10 border-indigo-500/20 text-indigo-200" : "bg-indigo-50 border-indigo-200 text-indigo-800"}`}>
-            <div className="flex items-center justify-between mb-1.5">
+            <div className="mb-1.5 flex min-w-0 flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2 font-semibold">
                 <Sparkles size={16} />
                 Chapter Guide
@@ -1024,7 +1074,7 @@ export default function BookEditor() {
           !isRecording && (
             <div className="text-center mt-16 space-y-2">
               <p
-                className={`text-2xl font-medium tracking-tight ${
+                className={`text-xl sm:text-2xl font-medium tracking-tight ${
                   isDarkMode ? "text-zinc-200" : "text-stone-800"
                 }`}
               >
@@ -1059,7 +1109,7 @@ export default function BookEditor() {
           ))}
         </Reorder.Group>
 
-        <div ref={bottomAnchorRef} className="h-40" aria-hidden />
+        <div ref={bottomAnchorRef} className="h-32 sm:h-40" aria-hidden />
       </main>
 
       <div className="fixed bottom-[calc(3rem+env(safe-area-inset-bottom))] left-0 right-0 z-20 pointer-events-none flex justify-center">

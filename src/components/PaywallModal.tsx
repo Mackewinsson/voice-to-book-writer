@@ -63,7 +63,7 @@ export default function PaywallModal({ isOpen, onClose, onKeySaved }: Props) {
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="relative bg-zinc-900 border border-zinc-800 p-6 sm:p-8 rounded-3xl shadow-2xl max-w-md w-full overflow-hidden"
+            className="relative bg-zinc-900 border border-zinc-800 p-6 sm:p-8 rounded-3xl shadow-2xl max-w-md w-full max-h-[90dvh] overflow-y-auto"
           >
             <button onClick={onClose} className="absolute top-4 right-4 text-zinc-500 hover:text-white transition-colors">
               <X size={24} />

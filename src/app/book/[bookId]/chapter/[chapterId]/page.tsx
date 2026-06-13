@@ -582,6 +582,16 @@ export default function BookEditor() {
       return;
     }
 
+    let stream: MediaStream;
+    try {
+      // Must be called immediately to preserve user gesture on Safari Mobile
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch (err) {
+      console.error("Error accessing microphone:", err);
+      alert("No se pudo acceder al micrófono. Por favor, asegúrate de dar permiso en la configuración de tu navegador/dispositivo y recarga la página.");
+      return;
+    }
+
     if (editingBlockId) {
       const block = blocks.find((b) => b.id === editingBlockId);
       if (block) await handleBlockSave(editingBlockId, block.text);
@@ -589,7 +599,6 @@ export default function BookEditor() {
     }
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mediaRecorder = new MediaRecorder(stream);
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
@@ -633,8 +642,8 @@ export default function BookEditor() {
       mediaRecorder.start();
       setIsRecording(true);
     } catch (err) {
-      console.error("Error accessing microphone:", err);
-      alert("Could not access the microphone.");
+      console.error("Error setting up MediaRecorder:", err);
+      alert("Error al iniciar la grabación.");
     }
   };
 

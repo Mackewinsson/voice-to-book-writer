@@ -6,6 +6,7 @@ import {
   useEffect,
   useLayoutEffect,
   useCallback,
+  type PointerEvent,
 } from "react";
 import { Mic, Moon, Sun, Loader2, Pencil, Lock, Bookmark, User, Compass, Sparkles, ChevronLeft, ClipboardPaste, Check, Trash2, Bot, GripVertical, ChevronDown } from "lucide-react";
 import { Reorder, useDragControls } from "framer-motion";
@@ -16,6 +17,54 @@ import { createClient } from "@/utils/supabase/client";
 import PaywallModal from "@/components/PaywallModal";
 import ConfirmModal from "@/components/ConfirmModal";
 import ScoreWidget from "@/components/ScoreWidget";
+
+const AUDIO_MIME_CANDIDATES = [
+  "audio/webm;codecs=opus",
+  "audio/webm",
+  "audio/mp4",
+  "audio/aac",
+  "audio/mpeg",
+] as const;
+
+function getSupportedAudioMimeType(): string | undefined {
+  if (typeof MediaRecorder === "undefined" || !MediaRecorder.isTypeSupported) {
+    return undefined;
+  }
+
+  return AUDIO_MIME_CANDIDATES.find((type) => MediaRecorder.isTypeSupported(type));
+}
+
+async function requestMicrophoneStream(): Promise<MediaStream> {
+  if (navigator.mediaDevices?.getUserMedia) {
+    return navigator.mediaDevices.getUserMedia({ audio: true });
+  }
+
+  type LegacyNavigator = Navigator & {
+    getUserMedia?: (
+      constraints: MediaStreamConstraints,
+      success: (stream: MediaStream) => void,
+      error: (err: Error) => void
+    ) => void;
+    webkitGetUserMedia?: LegacyNavigator["getUserMedia"];
+    mozGetUserMedia?: LegacyNavigator["getUserMedia"];
+    msGetUserMedia?: LegacyNavigator["getUserMedia"];
+  };
+
+  const legacyNavigator = navigator as LegacyNavigator;
+  const getUserMedia =
+    legacyNavigator.getUserMedia ||
+    legacyNavigator.webkitGetUserMedia ||
+    legacyNavigator.mozGetUserMedia ||
+    legacyNavigator.msGetUserMedia;
+
+  if (!getUserMedia) {
+    throw new Error("Microphone API not supported in this browser.");
+  }
+
+  return new Promise((resolve, reject) => {
+    getUserMedia.call(navigator, { audio: true }, resolve, reject);
+  });
+}
 
 type Block = { id: string; text: string; note_type?: string };
 
@@ -283,6 +332,7 @@ export default function BookEditor() {
   const [isPaywallOpen, setIsPaywallOpen] = useState(false);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const recordingMimeTypeRef = useRef<string>("audio/webm");
   const audioChunksRef = useRef<BlobPart[]>([]);
   const bottomAnchorRef = useRef<HTMLDivElement>(null);
   const recordingStartedAtRef = useRef<number | null>(null);
@@ -584,36 +634,25 @@ export default function BookEditor() {
 
     let stream: MediaStream;
     try {
-      // Must be called immediately to preserve user gesture on Safari Mobile
-      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      } else {
-        // Fallback for older browsers
-        const getUserMedia = (navigator as any).getUserMedia || 
-                             (navigator as any).webkitGetUserMedia || 
-                             (navigator as any).mozGetUserMedia || 
-                             (navigator as any).msGetUserMedia;
-                             
-        if (getUserMedia) {
-          stream = await new Promise((resolve, reject) => {
-            getUserMedia.call(navigator, { audio: true }, resolve, reject);
-          });
-        } else {
-          throw new Error("Microphone API not supported in this browser.");
-        }
-      }
-    } catch (err: any) {
+      // Must run before any await to preserve the mobile Safari user gesture.
+      stream = await requestMicrophoneStream();
+    } catch (err: unknown) {
       console.error("Error accessing microphone:", err);
+      const micError = err instanceof DOMException ? err : null;
       let errorMsg = "No se pudo acceder al micrófono.";
-      
-      if (err.name === 'NotAllowedError' || err.name === 'SecurityError') {
-        errorMsg += " El acceso fue denegado. Por favor, ve a la configuración de tu dispositivo/navegador y permite el acceso al micrófono para este sitio.";
-      } else if (err.name === 'NotFoundError') {
+
+      if (micError?.name === "NotAllowedError" || micError?.name === "SecurityError") {
+        errorMsg +=
+          " El acceso fue denegado. Ve a Ajustes > Safari > Micrófono (o la configuración del sitio en tu navegador) y permite el acceso, luego recarga la página.";
+      } else if (micError?.name === "NotFoundError") {
         errorMsg += " No se encontró ningún micrófono conectado.";
-      } else if (err.name === 'NotReadableError') {
+      } else if (micError?.name === "NotReadableError") {
         errorMsg += " El micrófono está siendo usado por otra aplicación.";
       } else {
-        errorMsg += ` Detalles: ${err.name || err.message || "Error desconocido"}`;
+        errorMsg += ` Detalles: ${
+          micError?.name ||
+          (err instanceof Error ? err.message : "Error desconocido")
+        }`;
       }
       
       alert(errorMsg);
@@ -627,7 +666,11 @@ export default function BookEditor() {
     }
 
     try {
-      const mediaRecorder = new MediaRecorder(stream);
+      const mimeType = getSupportedAudioMimeType();
+      recordingMimeTypeRef.current = mimeType ?? "audio/webm";
+      const mediaRecorder = mimeType
+        ? new MediaRecorder(stream, { mimeType })
+        : new MediaRecorder(stream);
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
 
@@ -649,7 +692,7 @@ export default function BookEditor() {
         }
 
         const audioBlob = new Blob(audioChunksRef.current, {
-          type: "audio/webm",
+          type: recordingMimeTypeRef.current,
         });
 
         if (audioBlob.size === 0) {
@@ -689,7 +732,12 @@ export default function BookEditor() {
     setIsProcessing(true);
     try {
       const formData = new FormData();
-      formData.append("audio", audioBlob, "recording.webm");
+      const extension = audioBlob.type.includes("mp4")
+        ? "recording.m4a"
+        : audioBlob.type.includes("mpeg")
+          ? "recording.mp3"
+          : "recording.webm";
+      formData.append("audio", audioBlob, extension);
       formData.append("durationSeconds", Math.ceil(durationMs / 1000).toString());
       // Only send the last block to keep context small
       const contextBlocks = blocks.slice(-1).map(b => b.text).join("\n\n");
@@ -762,8 +810,16 @@ export default function BookEditor() {
     if (isRecording) {
       stopRecording();
     } else {
-      startRecording();
+      void startRecording();
     }
+  };
+
+  const handleMicPointerDown = (event: PointerEvent<HTMLButtonElement>) => {
+    if (isProcessing || isLoading || !chapterId) return;
+
+    // iOS Safari requires getUserMedia inside the direct touch/pointer gesture.
+    event.preventDefault();
+    handleRecordClick();
   };
 
   const handleRecordClickRef = useRef(handleRecordClick);
@@ -1092,9 +1148,10 @@ export default function BookEditor() {
               </button>
 
               <button
-                onClick={handleRecordClick}
+                type="button"
+                onPointerDown={handleMicPointerDown}
                 disabled={isProcessing || isLoading || !chapterId}
-                className={`relative flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 rounded-full shadow-2xl transition-all duration-300 ease-out hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100 ${
+                className={`relative flex touch-manipulation select-none items-center justify-center w-16 h-16 sm:w-20 sm:h-20 rounded-full shadow-2xl transition-all duration-300 ease-out hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100 ${
                   isRecording
                     ? "bg-red-500 shadow-red-500/40 ring-4 ring-red-500/20"
                     : isDarkMode

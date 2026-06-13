@@ -41,10 +41,10 @@ export default function LandingPage() {
       </nav>
 
       <main className="relative pt-32 pb-20 px-6 max-w-7xl mx-auto space-y-32">
-        
+
         {/* Hero Section */}
         <section className="text-center max-w-4xl mx-auto space-y-8 mt-10">
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
@@ -53,8 +53,8 @@ export default function LandingPage() {
             <Sparkles size={14} />
             <span>The future of writing is spoken.</span>
           </motion.div>
-          
-          <motion.h1 
+
+          <motion.h1
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.1 }}
@@ -63,8 +63,8 @@ export default function LandingPage() {
             Speak your next <br className="hidden sm:block" />
             <span className="text-amber-400">bestseller.</span>
           </motion.h1>
-          
-          <motion.p 
+
+          <motion.p
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.2 }}
@@ -72,8 +72,8 @@ export default function LandingPage() {
           >
             Whisperbud translates your raw thoughts into beautifully structured book chapters, effortlessly categorizing your ideas as you speak.
           </motion.p>
-          
-          <motion.div 
+
+          <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.3 }}
@@ -105,7 +105,7 @@ export default function LandingPage() {
               desc: "Export your entire project directly to a professionally formatted Word (.docx) manuscript, ready for your editor."
             }
           ].map((feature, i) => (
-            <motion.div 
+            <motion.div
               key={i}
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
@@ -131,7 +131,7 @@ export default function LandingPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
             {/* Free Tier */}
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, x: -20 }}
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
@@ -153,7 +153,7 @@ export default function LandingPage() {
             </motion.div>
 
             {/* Pro Tier */}
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, x: 20 }}
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
@@ -163,7 +163,7 @@ export default function LandingPage() {
                 Sin suscripciones trampa
               </div>
               <h3 className="text-xl font-medium text-amber-400">Cuando se acabe la prueba, tú decides.</h3>
-              
+
               <ul className="space-y-4 mb-8 mt-6 flex-1 text-zinc-100">
                 <li className="flex items-start gap-3">
                   <Check size={18} className="text-amber-400 mt-1 shrink-0" />
@@ -179,7 +179,7 @@ export default function LandingPage() {
         </section>
 
       </main>
-      
+
       <footer className="border-t border-zinc-800/80 pt-8 pb-[calc(2rem+env(safe-area-inset-bottom))] mt-20">
         <div className="max-w-7xl mx-auto px-6 flex items-center justify-between text-sm text-zinc-500">
           <p>© {new Date().getFullYear()} Whisperbud. All rights reserved.</p>

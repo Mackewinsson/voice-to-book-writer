@@ -216,7 +216,7 @@ export default function Dashboard() {
           book_id: book.id, 
           title: lesson.title, 
           description: lesson.description, 
-          detailed_description: lesson.detailedDescription 
+          detailed_description: lesson.challenges ? lesson.challenges.join("\n\n") : "" 
         });
         
       if (chapterErr) {

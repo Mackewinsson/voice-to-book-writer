@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { createClient } from "@/utils/supabase/client";
-import { Loader2, Plus, Moon, Sun, ChevronLeft, FileText, Download, Pencil, Trash2, List, ScrollText, Lock, CheckCircle2 } from "lucide-react";
+import { Loader2, Plus, Moon, Sun, ChevronLeft, FileText, Download, Pencil, Trash2, List, ScrollText, Lock, CheckCircle2, Play, Trophy, Star } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { UserButton, useAuth } from "@clerk/nextjs";
 import Link from "next/link";
@@ -281,6 +281,10 @@ export default function ChapterList() {
     }
   }
 
+  const passedCount = chapters.filter(c => c.is_passed).length;
+  const totalLessons = chapters.length;
+  const averageScore = passedCount > 0 ? Math.round(chapters.filter(c => c.is_passed).reduce((acc, c) => acc + (c.lesson_score || 0), 0) / passedCount) : 0;
+
   return (
     <div className={`min-h-screen flex flex-col font-sans transition-colors duration-300 ${isDarkMode ? "bg-[#0c0c0e] text-zinc-100" : "bg-[#f7f4ef] text-stone-900"}`}>
       <div className={`pointer-events-none fixed inset-0 ${isDarkMode ? "bg-[radial-gradient(ellipse_at_top,_rgba(120,90,50,0.08),_transparent_55%)]" : "bg-[radial-gradient(ellipse_at_top,_rgba(180,140,90,0.12),_transparent_55%)]"}`} aria-hidden />
@@ -459,30 +463,87 @@ export default function ChapterList() {
             <p className={`text-xl font-medium tracking-tight ${isDarkMode ? "text-zinc-300" : "text-stone-700"}`}>No chapters yet</p>
             <p className={`text-sm ${isDarkMode ? "text-zinc-500" : "text-stone-500"}`}>Create your first chapter to start writing.</p>
           </div>
+        ) : isLearnMode ? (
+          <div className="flex flex-col gap-8 w-full max-w-xl mx-auto">
+            {/* Stats Banner */}
+            <div className={`flex items-center justify-around p-4 sm:p-6 rounded-3xl border ${isDarkMode ? "bg-zinc-900/40 border-zinc-800" : "bg-white/60 border-stone-200"} backdrop-blur-md shadow-sm`}>
+              <div className="flex flex-col items-center">
+                <Trophy size={24} className={isDarkMode ? "text-amber-500 mb-2" : "text-amber-500 mb-2"} />
+                <span className={`text-2xl font-bold tracking-tight ${isDarkMode ? "text-white" : "text-stone-900"}`}>{passedCount}/{totalLessons}</span>
+                <span className={`text-[10px] uppercase font-bold tracking-wider ${isDarkMode ? "text-zinc-500" : "text-stone-400"}`}>Completed</span>
+              </div>
+              <div className={`w-px h-16 ${isDarkMode ? "bg-zinc-800" : "bg-stone-200"}`}></div>
+              <div className="flex flex-col items-center">
+                <Star size={24} className={isDarkMode ? "text-indigo-500 mb-2" : "text-indigo-500 mb-2"} />
+                <span className={`text-2xl font-bold tracking-tight ${isDarkMode ? "text-white" : "text-stone-900"}`}>{averageScore}</span>
+                <span className={`text-[10px] uppercase font-bold tracking-wider ${isDarkMode ? "text-zinc-500" : "text-stone-400"}`}>Avg Score</span>
+              </div>
+            </div>
+
+            {/* Path */}
+            <div className="relative py-8 flex flex-col items-center w-full">
+              {/* Background Line */}
+              <div className={`absolute top-10 bottom-10 w-3 rounded-full ${isDarkMode ? "bg-zinc-800/60" : "bg-stone-200/80"}`} style={{ left: 'calc(50% - 6px)' }}></div>
+              
+              {chapters.map((chapter) => {
+                const isLocked = !unlockedChapters.has(chapter.id);
+                const isPassed = !!chapter.is_passed;
+                const isActive = !isPassed && !isLocked;
+
+                return (
+                  <div key={chapter.id} className="relative flex justify-center items-center w-full mb-14 group">
+                     <div className="z-10 flex flex-col items-center gap-3">
+                       {isActive ? (
+                         <Link href={`/book/${bookId}/chapter/${chapter.id}`} className="relative">
+                           <div className="absolute -inset-2 rounded-full bg-indigo-500/20 animate-ping"></div>
+                           <div className={`w-20 h-20 rounded-full flex flex-col items-center justify-center border-4 border-indigo-500 shadow-xl shadow-indigo-500/20 ${isDarkMode ? "bg-zinc-900" : "bg-white"} transition-transform hover:scale-110 active:scale-95`}>
+                             <Play size={28} className="text-indigo-500 ml-1" />
+                           </div>
+                         </Link>
+                       ) : isPassed ? (
+                         <Link href={`/book/${bookId}/chapter/${chapter.id}`}>
+                           <div className={`w-16 h-16 rounded-full flex flex-col items-center justify-center border-4 border-emerald-500 shadow-lg ${isDarkMode ? "bg-emerald-900/30" : "bg-emerald-100"} transition-transform hover:scale-110 active:scale-95`}>
+                             <CheckCircle2 size={24} className="text-emerald-500" />
+                           </div>
+                         </Link>
+                       ) : (
+                         <div className={`w-16 h-16 rounded-full flex flex-col items-center justify-center border-4 cursor-not-allowed ${isDarkMode ? "bg-zinc-800 border-zinc-700 text-zinc-600" : "bg-stone-100 border-stone-200 text-stone-400"}`}>
+                           <Lock size={20} />
+                         </div>
+                       )}
+                       
+                       <div className="text-center w-56 mt-2">
+                         <h3 className={`font-bold tracking-tight text-lg ${isActive ? (isDarkMode ? "text-indigo-400" : "text-indigo-600") : isPassed ? (isDarkMode ? "text-emerald-400" : "text-emerald-600") : (isDarkMode ? "text-zinc-600" : "text-stone-400")}`}>
+                           {chapter.title}
+                         </h3>
+                         {isPassed && chapter.lesson_score && (
+                           <span className={`inline-flex items-center gap-1 mt-1.5 text-[11px] font-bold px-2.5 py-0.5 rounded-full ${isDarkMode ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" : "bg-emerald-50 text-emerald-600 border border-emerald-200"}`}>
+                             Score: {chapter.lesson_score}
+                           </span>
+                         )}
+                       </div>
+                     </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {chapters.map((chapter, index) => {
-              const isLocked = isLearnMode && !unlockedChapters.has(chapter.id);
-              const isPassed = isLearnMode && chapter.is_passed;
               
               const CardContent = (
                 <article className={`group flex flex-col justify-between p-5 rounded-2xl border transition-all ${
-                  isLocked 
-                    ? isDarkMode ? "bg-zinc-900/40 border-zinc-800/50 opacity-60" : "bg-stone-50 border-stone-200/50 opacity-60"
-                    : isDarkMode 
-                      ? "bg-zinc-900/60 border-zinc-700/80 hover:bg-zinc-800/80 hover:border-zinc-600 shadow-black/40 hover:-translate-y-1 hover:shadow-lg" 
-                      : "bg-white/80 border-stone-200/90 hover:bg-white hover:border-stone-300 shadow-stone-200/50 hover:-translate-y-1 hover:shadow-lg"
+                  isDarkMode 
+                    ? "bg-zinc-900/60 border-zinc-700/80 hover:bg-zinc-800/80 hover:border-zinc-600 shadow-black/40 hover:-translate-y-1 hover:shadow-lg" 
+                    : "bg-white/80 border-stone-200/90 hover:bg-white hover:border-stone-300 shadow-stone-200/50 hover:-translate-y-1 hover:shadow-lg"
                 }`}>
                   <div className="flex justify-between items-start">
                     <div className="flex items-center gap-3">
                       <div className={`flex items-center justify-center w-10 h-10 rounded-full font-medium ${
-                        isPassed
-                          ? "bg-green-500/20 text-green-600"
-                          : isLocked
-                            ? isDarkMode ? "bg-zinc-800/50 text-zinc-600" : "bg-stone-200/50 text-stone-400"
-                            : isDarkMode ? "bg-zinc-800 text-zinc-300" : "bg-stone-100 text-stone-600 group-hover:bg-stone-200"
+                        isDarkMode ? "bg-zinc-800 text-zinc-300" : "bg-stone-100 text-stone-600 group-hover:bg-stone-200"
                       } transition-colors`}>
-                        {isPassed ? <CheckCircle2 size={20} /> : isLocked ? <Lock size={18} /> : index + 1}
+                        {index + 1}
                       </div>
                       <div>
                         {editingChapterId === chapter.id ? (
@@ -506,16 +567,11 @@ export default function ChapterList() {
                         ) : (
                           <div className="flex items-center gap-2">
                             <h3 className="font-medium text-lg tracking-tight line-clamp-1">{chapter.title}</h3>
-                            {isPassed && chapter.lesson_score && (
-                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded text-green-600 bg-green-500/10">
-                                {chapter.lesson_score}/100
-                              </span>
-                            )}
                           </div>
                         )}
                         <div className="flex items-center gap-2 mt-0.5">
                           <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider ${isDarkMode ? "bg-zinc-800 text-zinc-400" : "bg-stone-200 text-stone-500"}`}>
-                            {(chapter.word_count || 0).toLocaleString()} palabras
+                            {(chapter.word_count || 0).toLocaleString()} words
                           </span>
                           <p className={`text-xs ${isDarkMode ? "text-zinc-500" : "text-stone-500"}`}>
                             {new Date(chapter.created_at).toLocaleDateString()}
@@ -523,37 +579,31 @@ export default function ChapterList() {
                         </div>
                       </div>
                     </div>
-                    {!isLearnMode && (
-                      <div className="flex gap-1">
-                        <button 
-                          onClick={(e) => startEditingChapter(e, chapter)}
-                          className={`p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all ${isDarkMode ? "hover:bg-zinc-700 text-zinc-400" : "hover:bg-stone-100 text-stone-400"}`}
-                          title="Edit chapter name"
-                        >
-                          <Pencil size={16} />
-                        </button>
-                        <button 
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            setChapterToDelete(chapter);
-                          }}
-                          className={`p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all ${isDarkMode ? "hover:bg-red-500/20 text-red-400" : "hover:bg-red-50 text-red-500"}`}
-                          title="Delete chapter"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                    )}
+                    <div className="flex gap-1">
+                      <button 
+                        onClick={(e) => startEditingChapter(e, chapter)}
+                        className={`p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all ${isDarkMode ? "hover:bg-zinc-700 text-zinc-400" : "hover:bg-stone-100 text-stone-400"}`}
+                        title="Edit chapter name"
+                      >
+                        <Pencil size={16} />
+                      </button>
+                      <button 
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setChapterToDelete(chapter);
+                        }}
+                        className={`p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all ${isDarkMode ? "hover:bg-red-500/20 text-red-400" : "hover:bg-red-50 text-red-500"}`}
+                        title="Delete chapter"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
                   </div>
                 </article>
               );
 
-              return isLocked ? (
-                <div key={chapter.id} className="cursor-not-allowed">
-                  {CardContent}
-                </div>
-              ) : (
+              return (
                 <Link href={`/book/${bookId}/chapter/${chapter.id}`} key={chapter.id}>
                   {CardContent}
                 </Link>

@@ -75,7 +75,7 @@ export async function POST(req: Request) {
     if (type === "hook") {
       systemPrompt = "You are an expert social media strategist and copywriter. Evaluate the following 'hook' (the first few seconds of a short-form video script). Rate it from 0 to 100 based on its ability to instantly grab attention, trigger curiosity or emotion, and retain the viewer. Provide a short, constructive paragraph of feedback. RETURN JSON ONLY with keys 'score' (number) and 'feedback' (string).";
     } else if (type === "lesson") {
-      systemPrompt = `You are a strict but encouraging writing coach. Evaluate the user's text based strictly on the following lesson challenge:\n"${lessonInstructions}"\n\nRate the submission from 0 to 100 based on how well it achieves the specific goal of the challenge. Be constructive. RETURN JSON ONLY with keys 'score' (number) and 'feedback' (string).`;
+      systemPrompt = `You are a strict but encouraging writing coach. Evaluate the user's text based strictly on the following lesson challenge:\n"${lessonInstructions}"\n\nRate the submission from 0 to 100 based on how well it achieves the specific goal of the challenge. Be constructive.\nRETURN JSON ONLY with keys:\n- 'score' (number)\n- 'feedback' (string - very short, 1 or 2 sentences max)\n- 'alternativeIdea' (string - an actionable tip or a different angle showing how it could be better, without giving away the complete answer).`;
     } else {
       systemPrompt = "You are an expert social media strategist and copywriter. Evaluate the following full short-form video script. Rate it from 0 to 100 based on its pacing, value delivery, retention mechanics, and call to action. Provide a short, constructive paragraph of feedback. RETURN JSON ONLY with keys 'score' (number) and 'feedback' (string).";
     }
@@ -96,6 +96,7 @@ export async function POST(req: Request) {
       await supabase.from("chapters").update({
         lesson_score: evaluation.score,
         lesson_feedback: evaluation.feedback,
+        lesson_alternative: evaluation.alternativeIdea || null,
         is_passed: evaluation.score >= 80 ? true : false
       }).eq("id", chapterId);
     } else {

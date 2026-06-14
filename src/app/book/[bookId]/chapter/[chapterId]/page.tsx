@@ -399,6 +399,7 @@ export default function BookEditor() {
   const [isEvaluatingHook, setIsEvaluatingHook] = useState(false);
   const [lessonScore, setLessonScore] = useState<number | null>(null);
   const [lessonFeedback, setLessonFeedback] = useState<string | null>(null);
+  const [lessonAlternative, setLessonAlternative] = useState<string | null>(null);
   const [isPassed, setIsPassed] = useState<boolean>(false);
   const [isEvaluatingLesson, setIsEvaluatingLesson] = useState(false);
   const [isGuideExpanded, setIsGuideExpanded] = useState(false);
@@ -477,6 +478,7 @@ export default function BookEditor() {
         setChapterDetailedDescription(chapter.detailed_description);
         setLessonScore(chapter.lesson_score);
         setLessonFeedback(chapter.lesson_feedback);
+        setLessonAlternative(chapter.lesson_alternative);
         setIsPassed(chapter.is_passed);
 
         const { data: fetchedBlocks, error: blocksErr } = await supabase
@@ -595,6 +597,7 @@ export default function BookEditor() {
       
       setLessonScore(data.score);
       setLessonFeedback(data.feedback);
+      setLessonAlternative(data.alternativeIdea);
       if (data.score >= 80) {
         setIsPassed(true);
       }
@@ -1100,6 +1103,7 @@ export default function BookEditor() {
               title="Challenge"
               score={lessonScore}
               feedback={lessonFeedback}
+              alternativeIdea={lessonAlternative}
               isAnalyzing={isEvaluatingLesson}
               isDarkMode={isDarkMode}
               onAnalyze={handleEvaluateLesson}

@@ -1,11 +1,12 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Sparkles, Loader2, RefreshCw } from "lucide-react";
+import { Sparkles, Loader2, RefreshCw, Lightbulb } from "lucide-react";
 
 interface ScoreWidgetProps {
   score: number | null;
   feedback: string | null;
+  alternativeIdea?: string | null;
   isAnalyzing: boolean;
   isDarkMode: boolean;
   title: string;
@@ -15,6 +16,7 @@ interface ScoreWidgetProps {
 export default function ScoreWidget({
   score,
   feedback,
+  alternativeIdea,
   isAnalyzing,
   isDarkMode,
   title,
@@ -138,9 +140,31 @@ export default function ScoreWidget({
               <div className={`h-4 rounded w-1/2 animate-pulse ${isDarkMode ? "bg-zinc-800" : "bg-stone-200"}`} />
             </div>
           ) : (
-            <p className={`text-sm leading-relaxed ${isDarkMode ? "text-zinc-400" : "text-stone-600"}`}>
-              {feedback}
-            </p>
+            <div className="flex flex-col gap-4">
+              {feedback && (
+                <p className={`text-sm leading-relaxed ${isDarkMode ? "text-zinc-300" : "text-stone-700"}`}>
+                  {feedback}
+                </p>
+              )}
+              
+              {alternativeIdea && (
+                <div className={`p-4 rounded-xl border flex gap-3 ${
+                  isDarkMode 
+                    ? "bg-indigo-500/10 border-indigo-500/20 text-indigo-200" 
+                    : "bg-indigo-50 border-indigo-100 text-indigo-900"
+                }`}>
+                  <Lightbulb className={`flex-shrink-0 mt-0.5 ${isDarkMode ? "text-indigo-400" : "text-indigo-500"}`} size={18} />
+                  <div className="flex flex-col gap-1">
+                    <span className={`text-xs font-bold tracking-wider uppercase ${isDarkMode ? "text-indigo-400" : "text-indigo-600"}`}>
+                      Alternative Idea
+                    </span>
+                    <p className="text-sm leading-relaxed opacity-90">
+                      {alternativeIdea}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
           )}
         </div>
       </div>

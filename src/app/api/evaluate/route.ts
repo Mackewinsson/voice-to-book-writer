@@ -2,6 +2,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { createClient } from "@supabase/supabase-js";
+import { learnLessons } from "@/utils/learnLessons";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -31,6 +32,12 @@ export async function POST(req: Request) {
     }
     const projectLanguage = book.project_language || "English";
 
+    let starsEarned = 0;
+    if (type === "lesson" && chapterId) {
+      const { data: chapter } = await supabase.from("chapters").select("stars_earned").eq("id", chapterId).single();
+      starsEarned = chapter?.stars_earned || 0;
+    }
+
     let { data: profile } = await supabase.from("profiles").select("*").eq("user_id", userId).single();
     
     // Evaluate is a premium feature, let's just check if they have a key or we use the platform key
@@ -50,8 +57,14 @@ export async function POST(req: Request) {
       textToEvaluate = blocks?.map(b => b.content).join("\n") || "";
       
       if (type === "lesson") {
-        const { data: chapter } = await supabase.from("chapters").select("detailed_description").eq("id", chapterId).single();
-        lessonInstructions = chapter?.detailed_description || "Evaluate if the content is engaging and well-written.";
+        const { data: chapter } = await supabase.from("chapters").select("title, detailed_description").eq("id", chapterId).single();
+        const lessonDef = learnLessons.find(l => l.title === chapter?.title);
+        if (lessonDef && lessonDef.challenges) {
+          const challengeIndex = Math.min(starsEarned, 2);
+          lessonInstructions = lessonDef.challenges[challengeIndex];
+        } else {
+          lessonInstructions = chapter?.detailed_description || "Evaluate if the content is engaging and well-written.";
+        }
       }
     } else {
       // script
@@ -98,13 +111,23 @@ export async function POST(req: Request) {
         hook_score: evaluation.score,
         hook_feedback: evaluation.feedback
       }).eq("id", bookId);
-    } else if (type === "lesson") {
+    } else if (type === "lesson" && chapterId) {
+      const isGoodScore = evaluation.score >= 80;
+      let newStars = starsEarned;
+      if (isGoodScore && starsEarned < 3) {
+        newStars += 1;
+      }
+
       await supabase.from("chapters").update({
         lesson_score: evaluation.score,
         lesson_feedback: evaluation.feedback,
-        lesson_alternative: evaluation.alternativeIdea || null,
-        is_passed: evaluation.score >= 80 ? true : false
+        lesson_alternative: evaluation.alternativeIdea,
+        stars_earned: newStars,
+        is_passed: newStars >= 3
       }).eq("id", chapterId);
+      
+      // Also return stars in response to update UI immediately
+      return NextResponse.json({ ...evaluation, newStars });
     } else {
       await supabase.from("books").update({
         script_score: evaluation.score,

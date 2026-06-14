@@ -8,7 +8,7 @@ import {
   useCallback,
   type PointerEvent,
 } from "react";
-import { Mic, Moon, Sun, Loader2, Pencil, Lock, Bookmark, User, Compass, Sparkles, ChevronLeft, ClipboardPaste, Check, Trash2, Bot, GripVertical, ChevronDown } from "lucide-react";
+import { Mic, Moon, Sun, Loader2, Pencil, Lock, Bookmark, User, Compass, Sparkles, ChevronLeft, ClipboardPaste, Check, Trash2, Bot, GripVertical, ChevronDown, Star } from "lucide-react";
 import { Reorder, useDragControls } from "framer-motion";
 import { useParams } from "next/navigation";
 import Link from "next/link";
@@ -17,6 +17,7 @@ import { createClient } from "@/utils/supabase/client";
 import PaywallModal from "@/components/PaywallModal";
 import ConfirmModal from "@/components/ConfirmModal";
 import ScoreWidget from "@/components/ScoreWidget";
+import { learnLessons } from "@/utils/learnLessons";
 
 const AUDIO_MIME_CANDIDATES = [
   "audio/webm;codecs=opus",
@@ -401,6 +402,7 @@ export default function BookEditor() {
   const [lessonFeedback, setLessonFeedback] = useState<string | null>(null);
   const [lessonAlternative, setLessonAlternative] = useState<string | null>(null);
   const [isPassed, setIsPassed] = useState<boolean>(false);
+  const [starsEarned, setStarsEarned] = useState<number>(0);
   const [isEvaluatingLesson, setIsEvaluatingLesson] = useState(false);
   const [isGuideExpanded, setIsGuideExpanded] = useState(false);
   const [projectLanguage, setProjectLanguage] = useState<string>("English");
@@ -484,6 +486,7 @@ export default function BookEditor() {
         setLessonFeedback(chapter.lesson_feedback);
         setLessonAlternative(chapter.lesson_alternative);
         setIsPassed(chapter.is_passed);
+        setStarsEarned(chapter.stars_earned || 0);
 
         const { data: fetchedBlocks, error: blocksErr } = await supabase
           .from("blocks")
@@ -602,8 +605,11 @@ export default function BookEditor() {
       setLessonScore(data.score);
       setLessonFeedback(data.feedback);
       setLessonAlternative(data.alternativeIdea);
-      if (data.score >= 80) {
-        setIsPassed(true);
+      if (data.newStars !== undefined) {
+        setStarsEarned(data.newStars);
+        if (data.newStars >= 3) setIsPassed(true);
+      } else {
+        if (data.score >= 80) setIsPassed(true);
       }
     } catch (error) {
       console.error(error);
@@ -1076,12 +1082,30 @@ export default function BookEditor() {
         
         {chapterDescription && (
           <div className={`p-4 rounded-xl border mb-6 text-sm backdrop-blur-md ${isDarkMode ? "bg-indigo-500/10 border-indigo-500/20 text-indigo-200" : "bg-indigo-50 border-indigo-200 text-indigo-800"}`}>
-            <div className="mb-1.5 flex min-w-0 flex-wrap items-center justify-between gap-2">
-              <div className="flex items-center gap-2 font-semibold">
-                <Sparkles size={16} />
-                Chapter Guide
+            
+            {/* Stars UI for Learn Mode */}
+            {projectType === "learn" && (
+              <div className="flex justify-center gap-3 mb-5">
+                {[1, 2, 3].map(starNum => (
+                  <Star 
+                    key={starNum} 
+                    size={28} 
+                    className={`transition-all duration-500 ${
+                      starNum <= starsEarned 
+                        ? "fill-yellow-400 text-yellow-500 scale-110 drop-shadow-[0_0_8px_rgba(250,204,21,0.5)]" 
+                        : isDarkMode ? "text-zinc-700" : "text-stone-300"
+                    }`}
+                  />
+                ))}
               </div>
-              {chapterDetailedDescription && (
+            )}
+
+            <div className="mb-1.5 flex min-w-0 flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2 font-semibold text-lg">
+                <Sparkles size={18} />
+                Challenge
+              </div>
+              {(chapterDetailedDescription || projectType === "learn") && (
                 <button 
                   onClick={() => setIsGuideExpanded(!isGuideExpanded)}
                   className={`flex items-center gap-1 text-[10px] uppercase tracking-wider font-bold px-2 py-1 rounded transition-colors ${
@@ -1093,11 +1117,22 @@ export default function BookEditor() {
                 </button>
               )}
             </div>
-            <p className="leading-relaxed opacity-90">{chapterDescription}</p>
             
-            {chapterDetailedDescription && isGuideExpanded && (
-              <div className={`mt-3 pt-3 border-t ${isDarkMode ? "border-indigo-500/20" : "border-indigo-200"}`}>
-                <p className="leading-relaxed opacity-80">{chapterDetailedDescription}</p>
+            <p className="leading-relaxed opacity-90 text-base">{chapterDescription}</p>
+            
+            {/* Dynamic Challenge Text */}
+            {isGuideExpanded && (
+              <div className={`mt-4 pt-4 border-t ${isDarkMode ? "border-indigo-500/20" : "border-indigo-200"}`}>
+                {(() => {
+                  if (projectType === "learn") {
+                    const lessonDef = learnLessons.find(l => l.title === chapterTitle);
+                    if (lessonDef && lessonDef.challenges) {
+                      const challengeIndex = Math.min(starsEarned, 2);
+                      return <p className="leading-relaxed text-base font-medium">{lessonDef.challenges[challengeIndex]}</p>;
+                    }
+                  }
+                  return <p className="leading-relaxed opacity-80">{chapterDetailedDescription}</p>;
+                })()}
               </div>
             )}
             

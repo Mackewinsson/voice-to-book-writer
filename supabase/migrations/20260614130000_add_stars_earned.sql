@@ -1,0 +1,1 @@
+ALTER TABLE chapters ADD COLUMN stars_earned INTEGER DEFAULT 0;

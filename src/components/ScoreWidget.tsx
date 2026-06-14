@@ -10,6 +10,7 @@ interface ScoreWidgetProps {
   isAnalyzing: boolean;
   isDarkMode: boolean;
   title: string;
+  embedded?: boolean;
   onAnalyze: () => void;
 }
 
@@ -20,6 +21,7 @@ export default function ScoreWidget({
   isAnalyzing,
   isDarkMode,
   title,
+  embedded = false,
   onAnalyze
 }: ScoreWidgetProps) {
 
@@ -36,6 +38,26 @@ export default function ScoreWidget({
   };
 
   if (score === null && !isAnalyzing) {
+    if (embedded) {
+      return (
+        <div className="mt-4 pt-4 border-t border-dashed border-indigo-500/20 flex flex-col sm:flex-row gap-4 items-center justify-between">
+          <p className={`text-sm ${isDarkMode ? "text-indigo-200/70" : "text-indigo-800/70"}`}>
+            Ready to test your {title.toLowerCase()}?
+          </p>
+          <button
+            onClick={onAnalyze}
+            className={`flex w-full sm:w-auto items-center justify-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold transition-all shadow-lg ${
+              isDarkMode
+                ? "bg-gradient-to-r from-violet-600 to-indigo-600 text-white hover:shadow-indigo-500/25"
+                : "bg-gradient-to-r from-violet-500 to-indigo-500 text-white hover:shadow-indigo-500/30"
+            } hover:scale-105 active:scale-95`}
+          >
+            <Sparkles size={16} />
+            Analyze
+          </button>
+        </div>
+      );
+    }
     return (
       <div className={`p-6 rounded-2xl border transition-all ${
         isDarkMode 
@@ -69,13 +91,17 @@ export default function ScoreWidget({
     <motion.div 
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className={`p-6 rounded-2xl border shadow-xl backdrop-blur-xl relative overflow-hidden ${
-        isDarkMode 
-          ? "bg-[#0c0c0e]/80 border-zinc-800/80 shadow-black/50" 
-          : "bg-white/80 border-stone-200/80 shadow-indigo-900/5"
-      }`}
+      className={
+        embedded
+          ? "mt-4 pt-4 border-t border-dashed border-indigo-500/20 relative"
+          : `p-6 rounded-2xl border shadow-xl backdrop-blur-xl relative overflow-hidden ${
+              isDarkMode 
+                ? "bg-[#0c0c0e]/80 border-zinc-800/80 shadow-black/50" 
+                : "bg-white/80 border-stone-200/80 shadow-indigo-900/5"
+            }`
+      }
     >
-      <div className="absolute top-0 right-0 -mt-10 -mr-10 w-40 h-40 bg-indigo-500/10 blur-3xl rounded-full pointer-events-none" />
+      {!embedded && <div className="absolute top-0 right-0 -mt-10 -mr-10 w-40 h-40 bg-indigo-500/10 blur-3xl rounded-full pointer-events-none" />}
       
       <div className="flex flex-col sm:flex-row gap-6 items-start sm:items-center relative z-10">
         {/* Score Circle */}

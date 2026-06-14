@@ -628,6 +628,13 @@ export default function BookEditor() {
     const updatePayload: Record<string, string> = { content: newText };
     if (note_type) updatePayload.note_type = note_type;
     await supabase.from("blocks").update(updatePayload).eq("id", id);
+    
+    // Auto-evaluate when text changes
+    if (projectType === "learn") {
+      void handleEvaluateLesson();
+    } else if (projectType === "reel" && chapterTitle.toLowerCase().includes("hook")) {
+      void handleEvaluateHook();
+    }
   };
 
   const handleChangeNoteType = async (id: string, newType: string) => {
@@ -872,6 +879,13 @@ export default function BookEditor() {
           appendBlock(Date.now().toString(), newText);
         } else if (newBlock) {
           appendBlock(newBlock.id, newBlock.content);
+          
+          // Auto-evaluate when new audio is saved
+          if (projectType === "learn") {
+            void handleEvaluateLesson();
+          } else if (projectType === "reel" && chapterTitle.toLowerCase().includes("hook")) {
+            void handleEvaluateHook();
+          }
         }
       }
 
@@ -1081,46 +1095,44 @@ export default function BookEditor() {
                 <p className="leading-relaxed opacity-80">{chapterDetailedDescription}</p>
               </div>
             )}
-          </div>
-        )}
-
-        {projectType === "reel" && chapterTitle.toLowerCase().includes("hook") && (
-          <div className="mb-6">
-            <ScoreWidget
-              title="Hook"
-              score={hookScore}
-              feedback={hookFeedback}
-              isAnalyzing={isEvaluatingHook}
-              isDarkMode={isDarkMode}
-              onAnalyze={handleEvaluateHook}
-            />
-          </div>
-        )}
-
-        {projectType === "learn" && (
-          <div className="mb-6 space-y-4">
-            <ScoreWidget
-              title="Challenge"
-              score={lessonScore}
-              feedback={lessonFeedback}
-              alternativeIdea={lessonAlternative}
-              isAnalyzing={isEvaluatingLesson}
-              isDarkMode={isDarkMode}
-              onAnalyze={handleEvaluateLesson}
-            />
-            {isPassed && (
-              <div className="flex justify-center pt-4">
-                <Link
-                  href={`/book/${bookId}`}
-                  className={`px-6 py-3 rounded-full font-bold flex items-center gap-2 transition-transform hover:scale-105 active:scale-95 shadow-lg ${
-                    isDarkMode ? "bg-green-500 text-black shadow-green-500/20 hover:bg-green-400" : "bg-green-500 text-white shadow-green-500/30 hover:bg-green-600"
-                  }`}
-                >
-                  <Check size={20} />
-                  Challenge Passed! Back to Lessons
-                </Link>
-              </div>
+            
+            {projectType === "learn" && (
+              <ScoreWidget
+                title="Challenge"
+                score={lessonScore}
+                feedback={lessonFeedback}
+                alternativeIdea={lessonAlternative}
+                isAnalyzing={isEvaluatingLesson}
+                isDarkMode={isDarkMode}
+                embedded={true}
+                onAnalyze={handleEvaluateLesson}
+              />
             )}
+            {projectType === "reel" && chapterTitle.toLowerCase().includes("hook") && (
+              <ScoreWidget
+                title="Hook"
+                score={hookScore}
+                feedback={hookFeedback}
+                isAnalyzing={isEvaluatingHook}
+                isDarkMode={isDarkMode}
+                embedded={true}
+                onAnalyze={handleEvaluateHook}
+              />
+            )}
+          </div>
+        )}
+
+        {projectType === "learn" && isPassed && (
+          <div className="flex justify-center pt-2 mb-6">
+            <Link
+              href={`/book/${bookId}`}
+              className={`px-6 py-3 rounded-full font-bold flex items-center gap-2 transition-transform hover:scale-105 active:scale-95 shadow-lg ${
+                isDarkMode ? "bg-green-500 text-black shadow-green-500/20 hover:bg-green-400" : "bg-green-500 text-white shadow-green-500/30 hover:bg-green-600"
+              }`}
+            >
+              <Check size={20} />
+              Challenge Passed! Back to Lessons
+            </Link>
           </div>
         )}
 

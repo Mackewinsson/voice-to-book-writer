@@ -22,9 +22,12 @@ export async function POST(req: Request) {
     const supabase = createClient(supabaseUrl, supabaseKey);
     
     // Verify book ownership and get project_language
-    const { data: book } = await supabase.from("books").select("id, title, project_language").eq("id", bookId).eq("user_id", userId).single();
+    const { data: book, error: bookError } = await supabase.from("books").select("id, title, project_language").eq("id", bookId).eq("user_id", userId).single();
+    if (bookError) {
+      console.error("Supabase Book Error:", bookError);
+    }
     if (!book) {
-      return NextResponse.json({ error: "Book not found or unauthorized" }, { status: 404 });
+      return NextResponse.json({ error: "Book not found or unauthorized. Check if migration was run. Details: " + (bookError?.message || "") }, { status: 404 });
     }
     const projectLanguage = book.project_language || "English";
 

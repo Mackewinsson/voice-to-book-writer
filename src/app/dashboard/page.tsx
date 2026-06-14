@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { createClient } from "@/utils/supabase/client";
-import { Loader2, Plus, Moon, Sun, Library, Pencil, Trash2, Settings } from "lucide-react";
+import { Loader2, Plus, Moon, Sun, Library, Pencil, Trash2, Settings, Book, Scroll, GraduationCap } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { UserButton, useAuth } from "@clerk/nextjs";
 import Link from "next/link";
@@ -11,7 +11,7 @@ import CreateProjectModal from "@/components/CreateProjectModal";
 import { scriptFormulas } from "@/utils/scriptFormulas";
 import { learnLessons } from "@/utils/learnLessons";
 
-type BookRecord = { id: string; title: string; created_at: string; word_count?: number };
+type BookRecord = { id: string; title: string; created_at: string; word_count?: number; project_type?: string };
 
 export default function Dashboard() {
   const router = useRouter();
@@ -290,8 +290,27 @@ export default function Dashboard() {
                     : "bg-white/80 border-stone-200/90 hover:bg-white hover:border-stone-300 shadow-stone-200/50"
                 }`}>
                   <div className="flex justify-between items-start">
-                    <div className={`p-2 rounded-xl ${isDarkMode ? "bg-zinc-800" : "bg-stone-100 group-hover:bg-stone-200"} transition-colors`}>
-                      <Library size={20} className={isDarkMode ? "text-zinc-400" : "text-stone-500"} />
+                    <div className="flex items-center gap-3">
+                      <div className={`p-2.5 rounded-xl transition-colors ${
+                        book.project_type === "learn"
+                          ? isDarkMode ? "bg-emerald-500/20 text-emerald-400" : "bg-emerald-100 text-emerald-600"
+                          : book.project_type === "reel"
+                            ? isDarkMode ? "bg-amber-500/20 text-amber-400" : "bg-amber-100 text-amber-600"
+                            : isDarkMode ? "bg-blue-500/20 text-blue-400" : "bg-blue-100 text-blue-600"
+                      }`}>
+                        {book.project_type === "learn" ? <GraduationCap size={20} /> :
+                         book.project_type === "reel" ? <Scroll size={20} /> :
+                         <Book size={20} />}
+                      </div>
+                      <span className={`text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full ${
+                        book.project_type === "learn"
+                          ? isDarkMode ? "bg-emerald-500/10 text-emerald-400" : "bg-emerald-50 text-emerald-600 border border-emerald-100"
+                          : book.project_type === "reel"
+                            ? isDarkMode ? "bg-amber-500/10 text-amber-400" : "bg-amber-50 text-amber-600 border border-amber-100"
+                            : isDarkMode ? "bg-blue-500/10 text-blue-400" : "bg-blue-50 text-blue-600 border border-blue-100"
+                      }`}>
+                        {book.project_type === "learn" ? "Learn" : book.project_type === "reel" ? "Script" : "Book"}
+                      </span>
                     </div>
                     <div className="flex gap-1">
                       <button 

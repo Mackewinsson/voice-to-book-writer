@@ -23,3 +23,29 @@ export async function GET() {
     return NextResponse.json({ error: (error as Error).message }, { status: 500 });
   }
 }
+
+export async function PATCH(req: Request) {
+  try {
+    const { userId } = await auth();
+    if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    const { preferred_language } = await req.json();
+    if (!preferred_language) {
+      return NextResponse.json({ error: "Missing preferred_language" }, { status: 400 });
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseKey);
+    const { data: profile, error } = await supabase
+      .from("profiles")
+      .update({ preferred_language })
+      .eq("user_id", userId)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    return NextResponse.json({ profile });
+  } catch (error) {
+    return NextResponse.json({ error: (error as Error).message }, { status: 500 });
+  }
+}

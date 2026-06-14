@@ -35,6 +35,7 @@ export async function POST(req: Request) {
     const audioFile = formData.get("audio") as File;
     const durationSeconds = parseInt(formData.get("durationSeconds") as string || "0", 10);
     const context = formData.get("context") as string || "";
+    const projectLanguage = formData.get("projectLanguage") as string || "the spoken language";
 
     if (!audioFile) {
       return NextResponse.json({ error: "Audio file is required." }, { status: 400 });
@@ -74,7 +75,7 @@ export async function POST(req: Request) {
     const prompt = `You are a professional ghostwriter. Listen to the audio and transcribe it accurately into well-written paragraphs.
 CRITICAL INSTRUCTIONS:
 1. If the audio is silent or contains NO spoken words, you MUST return exactly the string "[NO_AUDIO]". Do not write anything else.
-2. You MUST write the output in the EXACT same language that is spoken in the audio. Do not translate it.
+2. You MUST write the output in ${projectLanguage}. Do not translate it if it's already in that language, but if it is not, or if you are formatting it, ensure the final text is strictly in ${projectLanguage}.
 3. Fix minor grammar issues and maintain the author's voice.
 4. Use this brief preceding context only to understand tone and continuity:
 

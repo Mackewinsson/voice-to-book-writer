@@ -403,6 +403,7 @@ export default function BookEditor() {
   const [isPassed, setIsPassed] = useState<boolean>(false);
   const [isEvaluatingLesson, setIsEvaluatingLesson] = useState(false);
   const [isGuideExpanded, setIsGuideExpanded] = useState(false);
+  const [projectLanguage, setProjectLanguage] = useState<string>("English");
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [isEditingChapter, setIsEditingChapter] = useState(false);
   const titleInputRef = useRef<HTMLInputElement>(null);
@@ -459,7 +460,10 @@ export default function BookEditor() {
 
         if (!book) return;
         setBookTitle(book.title);
-        setProjectType(book.project_type);
+        setProjectType(book.project_type || "book");
+        if (book.project_language) {
+          setProjectLanguage(book.project_language);
+        }
         setHookScore(book.hook_score);
         setHookFeedback(book.hook_feedback);
 
@@ -834,6 +838,7 @@ export default function BookEditor() {
       // Only send the last block to keep context small
       const contextBlocks = blocks.slice(-1).map(b => b.text).join("\n\n");
       formData.append("context", contextBlocks);
+      formData.append("projectLanguage", projectLanguage);
 
       const response = await fetch("/api/process-audio", {
         method: "POST",

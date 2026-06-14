@@ -9,22 +9,29 @@ interface CreateProjectModalProps {
   isOpen: boolean;
   isDarkMode: boolean;
   isLoading: boolean;
+  preferredLanguage?: string;
   onClose: () => void;
-  onSelectBook: () => void;
-  onSelectScript?: (formulaId: string) => void;
-  onSelectLearn?: () => void;
+  onSelectBook: (lang: string) => void;
+  onSelectScript?: (formulaId: string, lang: string) => void;
+  onSelectLearn?: (lang: string) => void;
 }
 
 export default function CreateProjectModal({
   isOpen,
   isDarkMode,
   isLoading,
+  preferredLanguage = "English",
   onClose,
   onSelectBook,
   onSelectScript,
   onSelectLearn,
 }: CreateProjectModalProps) {
   const [step, setStep] = useState<"type" | "formula">("type");
+  const [selectedLanguage, setSelectedLanguage] = useState(preferredLanguage);
+
+  useEffect(() => {
+    setSelectedLanguage(preferredLanguage);
+  }, [preferredLanguage]);
 
   useEffect(() => {
     if (isOpen) {
@@ -122,13 +129,36 @@ export default function CreateProjectModal({
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
             >
-              <div className="mb-6">
-                <h2 className={`text-2xl font-bold tracking-tight mb-2 ${isDarkMode ? "text-white" : "text-stone-900"}`}>
-                  What are you writing?
-                </h2>
-                <p className={`text-sm ${isDarkMode ? "text-zinc-400" : "text-stone-500"}`}>
-                  Choose a format for your new project.
-                </p>
+              <div className="mb-6 flex flex-col sm:flex-row sm:justify-between sm:items-end gap-4">
+                <div>
+                  <h2 className={`text-2xl font-bold tracking-tight mb-2 ${isDarkMode ? "text-white" : "text-stone-900"}`}>
+                    What are you writing?
+                  </h2>
+                  <p className={`text-sm ${isDarkMode ? "text-zinc-400" : "text-stone-500"}`}>
+                    Choose a format for your new project.
+                  </p>
+                </div>
+                <div className="flex flex-col gap-1 w-full sm:w-auto">
+                  <label className={`text-xs font-bold uppercase tracking-wider ${isDarkMode ? "text-zinc-500" : "text-stone-500"}`}>
+                    Language
+                  </label>
+                  <select
+                    value={selectedLanguage}
+                    onChange={(e) => setSelectedLanguage(e.target.value)}
+                    className={`p-2 px-3 rounded-xl border text-sm appearance-none outline-none focus:ring-2 focus:ring-indigo-500/50 ${
+                      isDarkMode 
+                        ? "bg-zinc-900 border-zinc-700 text-zinc-200" 
+                        : "bg-stone-50 border-stone-200 text-stone-800"
+                    }`}
+                  >
+                    <option value="English">English</option>
+                    <option value="Spanish">Spanish</option>
+                    <option value="French">French</option>
+                    <option value="German">German</option>
+                    <option value="Italian">Italian</option>
+                    <option value="Portuguese">Portuguese</option>
+                  </select>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -137,9 +167,9 @@ export default function CreateProjectModal({
                     key={option.id}
                     disabled={option.disabled || isLoading}
                     onClick={() => {
-                      if (option.id === "book") onSelectBook();
+                      if (option.id === "book") onSelectBook(selectedLanguage);
                       else if (option.id === "script") setStep("formula");
-                      else if (option.id === "learn" && onSelectLearn) onSelectLearn();
+                      else if (option.id === "learn" && onSelectLearn) onSelectLearn(selectedLanguage);
                     }}
                     className={`relative flex flex-col text-left p-5 rounded-2xl border transition-all ${
                       option.disabled
@@ -219,7 +249,7 @@ export default function CreateProjectModal({
                   <button
                     key={formula.id}
                     disabled={isLoading}
-                    onClick={() => onSelectScript?.(formula.id)}
+                    onClick={() => onSelectScript && onSelectScript(formula.id, selectedLanguage)}
                     className={`flex flex-col text-left p-4 rounded-xl border transition-all ${
                       isDarkMode
                         ? "bg-zinc-900/60 border-zinc-700 hover:bg-zinc-800 hover:border-amber-500/50"

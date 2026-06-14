@@ -21,11 +21,12 @@ export async function POST(req: Request) {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
     
-    // Verify book ownership
-    const { data: book } = await supabase.from("books").select("id, title").eq("id", bookId).eq("user_id", userId).single();
+    // Verify book ownership and get project_language
+    const { data: book } = await supabase.from("books").select("id, title, project_language").eq("id", bookId).eq("user_id", userId).single();
     if (!book) {
       return NextResponse.json({ error: "Book not found or unauthorized" }, { status: 404 });
     }
+    const projectLanguage = book.project_language || "English";
 
     let { data: profile } = await supabase.from("profiles").select("*").eq("user_id", userId).single();
     
@@ -80,7 +81,7 @@ export async function POST(req: Request) {
       systemPrompt = "You are an expert social media strategist and copywriter. Evaluate the following full short-form video script. Rate it from 0 to 100 based on its pacing, value delivery, retention mechanics, and call to action. Provide a short, constructive paragraph of feedback. RETURN JSON ONLY with keys 'score' (number) and 'feedback' (string).";
     }
 
-    systemPrompt += "\n\nCRITICAL INSTRUCTION: You MUST write your feedback and responses in the exact same language that the user wrote their input text. If the text is in Spanish, your feedback must be in Spanish. If it is in English, reply in English.";
+    systemPrompt += `\n\nCRITICAL INSTRUCTION: You MUST write your feedback and alternativeIdea strictly in ${projectLanguage}. Do not use any other language.`;
 
     const prompt = `${systemPrompt}\n\n[CONTENT TO EVALUATE]\n${textToEvaluate}\n[/CONTENT TO EVALUATE]`;
 

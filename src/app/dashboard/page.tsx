@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { createClient } from "@/utils/supabase/client";
-import { Loader2, Plus, Moon, Sun, Library, Pencil, Trash2 } from "lucide-react";
+import { Loader2, Plus, Moon, Sun, Library, Pencil, Trash2, Settings } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { UserButton, useAuth } from "@clerk/nextjs";
 import Link from "next/link";
@@ -21,7 +21,9 @@ export default function Dashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
   const [isProjectTypeModalOpen, setIsProjectTypeModalOpen] = useState(false);
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const [preferredLanguage, setPreferredLanguage] = useState("Spanish");
   
   const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
   const [editingProjectTitle, setEditingProjectTitle] = useState("");
@@ -83,6 +85,12 @@ export default function Dashboard() {
       if (!error && data) {
         setProjects(data.map(book => ({ ...book, word_count: countsMap.get(book.id) || 0 })));
       }
+
+      const { data: profile } = await supabase.from("profiles").select("preferred_language").eq("user_id", userId).single();
+      if (profile && profile.preferred_language) {
+        setPreferredLanguage(profile.preferred_language);
+      }
+
       setIsLoading(false);
     }
     fetchProjects();
@@ -97,14 +105,28 @@ export default function Dashboard() {
     }
   };
 
-  const handleCreateProject = async () => {
+  const handleSaveLanguage = async (newLang: string) => {
+    setPreferredLanguage(newLang);
+    setIsSettingsModalOpen(false);
+    try {
+      await fetch("/api/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ preferred_language: newLang }),
+      });
+    } catch (err) {
+      console.error("Failed to save language", err);
+    }
+  };
+
+  const handleCreateProject = async (language: string) => {
     if (!userId) return;
     setIsCreating(true);
     const supabase = createClient();
     
     const { data: book, error: bookErr } = await supabase
       .from("books")
-      .insert({ title: "Untitled Draft", user_id: userId })
+      .insert({ title: "Untitled Draft", user_id: userId, project_language: language })
       .select()
       .single();
 
@@ -127,7 +149,7 @@ export default function Dashboard() {
     router.push(`/book/${book.id}`);
   };
 
-  const handleCreateScript = async (formulaId: string) => {
+  const handleCreateScript = async (formulaId: string, language: string) => {
     if (!userId) return;
     setIsCreating(true);
     
@@ -141,7 +163,7 @@ export default function Dashboard() {
     
     const { data: book, error: bookErr } = await supabase
       .from("books")
-      .insert({ title: "Untitled Script", user_id: userId, project_type: "reel" })
+      .insert({ title: "Untitled Script", user_id: userId, project_type: "reel", project_language: language })
       .select()
       .single();
 
@@ -168,7 +190,7 @@ export default function Dashboard() {
     router.push(`/book/${book.id}`);
   };
 
-  const handleCreateLearnProject = async () => {
+  const handleCreateLearnProject = async (language: string) => {
     if (!userId) return;
     setIsCreating(true);
 
@@ -176,7 +198,7 @@ export default function Dashboard() {
     
     const { data: book, error: bookErr } = await supabase
       .from("books")
-      .insert({ title: "My Learning Journey", user_id: userId, project_type: "learn" })
+      .insert({ title: "My Learning Journey", user_id: userId, project_type: "learn", project_language: language })
       .select()
       .single();
 
@@ -220,6 +242,9 @@ export default function Dashboard() {
         <div className="flex gap-4 items-center">
           <button onClick={toggleDarkMode} className={`p-2 rounded-full transition-colors ${isDarkMode ? "hover:bg-white/10" : "hover:bg-black/5"}`}>
             {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
+          </button>
+          <button onClick={() => setIsSettingsModalOpen(true)} className={`p-2 rounded-full transition-colors ${isDarkMode ? "hover:bg-white/10" : "hover:bg-black/5"}`}>
+            <Settings size={20} className={isDarkMode ? "text-zinc-400" : "text-stone-500"} />
           </button>
           <UserButton />
         </div>
@@ -338,15 +363,43 @@ export default function Dashboard() {
         onCancel={() => setProjectToDelete(null)}
       />
 
-      <CreateProjectModal
-        isOpen={isProjectTypeModalOpen}
+      <CreateProjectModal 
+        isOpen={isProjectTypeModalOpen} 
         isDarkMode={isDarkMode}
         isLoading={isCreating}
+        preferredLanguage={preferredLanguage}
         onClose={() => setIsProjectTypeModalOpen(false)}
         onSelectBook={handleCreateProject}
         onSelectScript={handleCreateScript}
         onSelectLearn={handleCreateLearnProject}
       />
+
+      {isSettingsModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <div className={`absolute inset-0 backdrop-blur-sm ${isDarkMode ? "bg-black/40" : "bg-black/20"}`} onClick={() => setIsSettingsModalOpen(false)} />
+          <div className={`relative w-full max-w-md rounded-3xl p-6 shadow-2xl border ${isDarkMode ? "bg-[#0c0c0e] border-zinc-800" : "bg-white border-stone-200"}`}>
+            <h2 className="text-xl font-bold mb-4">Global Settings</h2>
+            <div className="mb-6">
+              <label className="block text-sm font-medium mb-2">Preferred Output Language</label>
+              <select
+                className={`w-full p-3 rounded-xl border appearance-none ${isDarkMode ? "bg-zinc-900 border-zinc-800 text-white" : "bg-stone-50 border-stone-200 text-stone-900"}`}
+                value={preferredLanguage}
+                onChange={(e) => handleSaveLanguage(e.target.value)}
+              >
+                <option value="English">English</option>
+                <option value="Spanish">Spanish</option>
+                <option value="French">French</option>
+                <option value="German">German</option>
+                <option value="Italian">Italian</option>
+                <option value="Portuguese">Portuguese</option>
+              </select>
+            </div>
+            <button onClick={() => setIsSettingsModalOpen(false)} className={`w-full py-3 rounded-xl font-medium ${isDarkMode ? "bg-zinc-800 text-white" : "bg-stone-200 text-stone-900"}`}>
+              Close
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

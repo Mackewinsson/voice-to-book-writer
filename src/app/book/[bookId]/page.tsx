@@ -9,7 +9,7 @@ import Link from "next/link";
 import ConfirmModal from "@/components/ConfirmModal";
 import ScoreWidget from "@/components/ScoreWidget";
 
-type BookRecord = { id: string; title: string; project_type?: string; script_score?: number; script_feedback?: string; };
+type BookRecord = { id: string; title: string; project_type?: string; script_score?: number; script_feedback?: string; hook_score?: number; hook_feedback?: string; };
 type ChapterRecord = { id: string; title: string; created_at: string; word_count?: number; is_passed?: boolean; lesson_score?: number; };
 type BlockRecord = { id: string; chapter_id: string; content: string; note_type: string; order_index: number; };
 
@@ -32,6 +32,7 @@ export default function ChapterList() {
   const [allBlocks, setAllBlocks] = useState<BlockRecord[]>([]);
   const [isLoadingManuscript, setIsLoadingManuscript] = useState(false);
   const [isEvaluatingScript, setIsEvaluatingScript] = useState(false);
+  const [isEvaluatingHook, setIsEvaluatingHook] = useState(false);
 
   const handleTitleSave = async (newTitle: string) => {
     const finalTitle = newTitle.trim() || "Untitled Draft";
@@ -269,6 +270,31 @@ export default function ChapterList() {
     }
   };
 
+  const handleEvaluateHook = async () => {
+    if (!bookId || !book) return;
+    setIsEvaluatingHook(true);
+    try {
+      const res = await fetch("/api/evaluate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bookId, type: "hook" }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Evaluation failed");
+      
+      setBook({
+        ...book,
+        hook_score: data.score,
+        hook_feedback: data.feedback
+      });
+    } catch (error) {
+      console.error(error);
+      alert(error instanceof Error ? error.message : "Failed to evaluate hook.");
+    } finally {
+      setIsEvaluatingHook(false);
+    }
+  };
+
   const isLearnMode = book?.project_type === "learn";
   const unlockedChapters = new Set<string>();
   if (isLearnMode) {
@@ -400,9 +426,17 @@ export default function ChapterList() {
           ) : (
             <div className={`max-w-2xl mx-auto py-8 space-y-16 ${isDarkMode ? "text-zinc-300" : "text-stone-800"} text-lg leading-relaxed font-serif`}>
               {book?.project_type === "reel" && (
-                <div className="font-sans mb-8">
+                <div className="font-sans mb-8 grid grid-cols-1 md:grid-cols-2 gap-6">
                   <ScoreWidget
-                    title="Script"
+                    title="Hook"
+                    score={book.hook_score || null}
+                    feedback={book.hook_feedback || null}
+                    isAnalyzing={isEvaluatingHook}
+                    isDarkMode={isDarkMode}
+                    onAnalyze={handleEvaluateHook}
+                  />
+                  <ScoreWidget
+                    title="Development"
                     score={book.script_score || null}
                     feedback={book.script_feedback || null}
                     isAnalyzing={isEvaluatingScript}

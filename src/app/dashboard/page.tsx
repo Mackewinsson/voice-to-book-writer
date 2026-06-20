@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { createClient } from "@/utils/supabase/client";
-import { Loader2, Plus, Moon, Sun, Library, Pencil, Trash2, Settings, Book, Scroll, GraduationCap } from "lucide-react";
+import { Loader2, Plus, Moon, Sun, Library, Pencil, Trash2, Settings, Book, Scroll, GraduationCap, CheckCircle2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { UserButton, useAuth } from "@clerk/nextjs";
 import Link from "next/link";
@@ -11,7 +11,7 @@ import CreateProjectModal from "@/components/CreateProjectModal";
 import { scriptFormulas } from "@/utils/scriptFormulas";
 import { learnLessons } from "@/utils/learnLessons";
 
-type BookRecord = { id: string; title: string; created_at: string; word_count?: number; project_type?: string };
+type BookRecord = { id: string; title: string; created_at: string; word_count?: number; project_type?: string; script_score?: number; due_date?: string | null; is_done?: boolean; };
 
 export default function Dashboard() {
   const router = useRouter();
@@ -24,6 +24,7 @@ export default function Dashboard() {
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [preferredLanguage, setPreferredLanguage] = useState("Spanish");
+  const [activeTab, setActiveTab] = useState<"all" | "book" | "reel" | "learn">("all");
   
   const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
   const [editingProjectTitle, setEditingProjectTitle] = useState("");
@@ -64,6 +65,25 @@ export default function Dashboard() {
     setProjects(projects.filter(p => p.id !== projectToDelete.id));
     setProjectToDelete(null);
     setIsDeleting(false);
+  };
+
+  const handleSetDueDate = async (e: React.ChangeEvent<HTMLInputElement>, bookId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // Allow empty string to mean null (no due date)
+    const date = e.target.value ? new Date(e.target.value).toISOString() : null;
+    setProjects(projects.map(p => p.id === bookId ? { ...p, due_date: date } : p));
+    const supabase = createClient();
+    await supabase.from("books").update({ due_date: date }).eq("id", bookId);
+  };
+
+  const handleToggleDone = async (e: React.MouseEvent, bookId: string, currentDone: boolean) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const nextDone = !currentDone;
+    setProjects(projects.map(p => p.id === bookId ? { ...p, is_done: nextDone } : p));
+    const supabase = createClient();
+    await supabase.from("books").update({ is_done: nextDone }).eq("id", bookId);
   };
 
   useEffect(() => {
@@ -230,6 +250,58 @@ export default function Dashboard() {
     router.push(`/book/${book.id}`);
   };
 
+  const filteredProjects = projects.filter(book => {
+    if (activeTab === "all") return true;
+    if (activeTab === "book") return !book.project_type || book.project_type === "book";
+    return book.project_type === activeTab;
+  });
+
+  const getCardStyle = (book: BookRecord) => {
+    const now = new Date();
+    // Set 'now' to start of day for accurate comparison
+    now.setHours(0, 0, 0, 0);
+
+    const dueDate = book.due_date ? new Date(book.due_date) : null;
+    if (dueDate) {
+      dueDate.setHours(0, 0, 0, 0);
+    }
+    
+    const isPastDue = dueDate ? dueDate < now : false;
+    const isDueSoon = dueDate ? (dueDate.getTime() - now.getTime()) <= 3 * 24 * 60 * 60 * 1000 && !isPastDue : false;
+    
+    let isGreen = false;
+    if (book.is_done) {
+      if (book.project_type === "reel") {
+        isGreen = (book.script_score ?? 0) >= 70;
+      } else {
+        isGreen = true;
+      }
+    }
+
+    if (isGreen) {
+      return isDarkMode 
+        ? "bg-emerald-900/20 border-emerald-500/50 hover:bg-emerald-900/30 shadow-emerald-500/10" 
+        : "bg-emerald-50 border-emerald-300 hover:bg-emerald-100 shadow-emerald-500/10";
+    }
+    
+    if (!book.is_done && isPastDue) {
+      return isDarkMode 
+        ? "bg-red-900/20 border-red-500/50 hover:bg-red-900/30 shadow-red-500/10" 
+        : "bg-red-50 border-red-300 hover:bg-red-100 shadow-red-500/10";
+    }
+
+    if (!book.is_done && isDueSoon) {
+      return isDarkMode 
+        ? "bg-amber-900/20 border-amber-500/50 hover:bg-amber-900/30 shadow-amber-500/10" 
+        : "bg-amber-50 border-amber-300 hover:bg-amber-100 shadow-amber-500/10";
+    }
+
+    // Default
+    return isDarkMode 
+        ? "bg-zinc-900/60 border-zinc-700/80 hover:bg-zinc-800/80 hover:border-zinc-600 shadow-black/40" 
+        : "bg-white/80 border-stone-200/90 hover:bg-white hover:border-stone-300 shadow-stone-200/50";
+  };
+
   return (
     <div className={`min-h-screen flex flex-col font-sans transition-colors duration-300 ${isDarkMode ? "bg-[#0c0c0e] text-zinc-100" : "bg-[#f7f4ef] text-stone-900"}`}>
       <div className={`pointer-events-none fixed inset-0 ${isDarkMode ? "bg-[radial-gradient(ellipse_at_top,_rgba(120,90,50,0.08),_transparent_55%)]" : "bg-[radial-gradient(ellipse_at_top,_rgba(180,140,90,0.12),_transparent_55%)]"}`} aria-hidden />
@@ -252,20 +324,50 @@ export default function Dashboard() {
 
       <main className="relative flex-1 overflow-y-auto px-4 sm:px-6 md:max-w-4xl md:mx-auto w-full py-8 space-y-6">
         
-        <div className="flex justify-between items-center">
-          <h2 className="text-2xl font-semibold tracking-tight">Recent Drafts</h2>
-          <button 
-            onClick={() => setIsProjectTypeModalOpen(true)}
-            disabled={isCreating}
-            className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all shadow-sm ${
-              isDarkMode 
-                ? "bg-zinc-100 text-zinc-900 hover:bg-white shadow-white/5" 
-                : "bg-stone-900 text-stone-50 hover:bg-black shadow-black/10"
-            }`}
-          >
-            {isCreating ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
-            New Project
-          </button>
+        <div className="space-y-4">
+          <div className="flex justify-between items-center">
+            <h2 className="text-2xl font-semibold tracking-tight">Recent Drafts</h2>
+            <button 
+              onClick={() => setIsProjectTypeModalOpen(true)}
+              disabled={isCreating}
+              className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all shadow-sm ${
+                isDarkMode 
+                  ? "bg-zinc-100 text-zinc-900 hover:bg-white shadow-white/5" 
+                  : "bg-stone-900 text-stone-50 hover:bg-black shadow-black/10"
+              }`}
+            >
+              {isCreating ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
+              New Project
+            </button>
+          </div>
+
+          {projects.length > 0 && (
+            <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 custom-scrollbar">
+              {[
+                { id: "all", label: "All Projects", icon: Library },
+                { id: "book", label: "Books", icon: Book },
+                { id: "reel", label: "Scripts", icon: Scroll },
+                { id: "learn", label: "Learning", icon: GraduationCap },
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id as any)}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all whitespace-nowrap ${
+                    activeTab === tab.id
+                      ? isDarkMode
+                        ? "bg-indigo-500 text-white shadow-lg shadow-indigo-500/20"
+                        : "bg-indigo-500 text-white shadow-lg shadow-indigo-500/20"
+                      : isDarkMode
+                        ? "bg-zinc-800/50 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
+                        : "bg-white text-stone-500 hover:bg-stone-50 border border-stone-200/50"
+                  }`}
+                >
+                  <tab.icon size={16} />
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {isLoading ? (
@@ -280,15 +382,19 @@ export default function Dashboard() {
             <p className={`text-xl font-medium tracking-tight ${isDarkMode ? "text-zinc-300" : "text-stone-700"}`}>No projects yet</p>
             <p className={`text-sm ${isDarkMode ? "text-zinc-500" : "text-stone-500"}`}>Create your first book project to start writing with your voice.</p>
           </div>
+        ) : filteredProjects.length === 0 ? (
+          <div className="text-center py-20 space-y-3">
+            <div className={`inline-flex p-4 rounded-full ${isDarkMode ? "bg-zinc-800/50" : "bg-stone-200/50"}`}>
+              <Library size={32} className={isDarkMode ? "text-zinc-500" : "text-stone-400"} />
+            </div>
+            <p className={`text-xl font-medium tracking-tight ${isDarkMode ? "text-zinc-300" : "text-stone-700"}`}>Folder empty</p>
+            <p className={`text-sm ${isDarkMode ? "text-zinc-500" : "text-stone-500"}`}>You don't have any projects of this type yet.</p>
+          </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-            {projects.map(book => (
+            {filteredProjects.map(book => (
               <Link href={`/book/${book.id}`} key={book.id}>
-                <article className={`group flex flex-col justify-between h-40 p-5 rounded-2xl border transition-all hover:-translate-y-1 hover:shadow-lg ${
-                  isDarkMode 
-                    ? "bg-zinc-900/60 border-zinc-700/80 hover:bg-zinc-800/80 hover:border-zinc-600 shadow-black/40" 
-                    : "bg-white/80 border-stone-200/90 hover:bg-white hover:border-stone-300 shadow-stone-200/50"
-                }`}>
+                <article className={`group flex flex-col justify-between min-h-[10rem] p-5 rounded-2xl border transition-all hover:-translate-y-1 hover:shadow-lg ${getCardStyle(book)}`}>
                   <div className="flex justify-between items-start">
                     <div className="flex items-center gap-3">
                       <div className={`p-2.5 rounded-xl transition-colors ${
@@ -362,6 +468,34 @@ export default function Dashboard() {
                       <p className={`text-xs ${isDarkMode ? "text-zinc-500" : "text-stone-500"}`}>
                         {new Date(book.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
                       </p>
+                    </div>
+
+                    <div className={`flex items-center justify-between gap-2 mt-4 pt-3 border-t border-dashed ${isDarkMode ? "border-zinc-700" : "border-stone-200"}`} onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
+                      <input 
+                        type="date"
+                        value={book.due_date ? new Date(book.due_date).toISOString().split('T')[0] : ""}
+                        onChange={(e) => handleSetDueDate(e, book.id)}
+                        className={`text-[11px] p-1.5 rounded cursor-pointer border outline-none font-medium ${
+                          isDarkMode 
+                            ? "bg-zinc-900/50 border-zinc-700/50 text-zinc-300 focus:border-zinc-500" 
+                            : "bg-stone-50 border-stone-200 text-stone-600 focus:border-stone-300"
+                        }`}
+                        title="Set a due date"
+                      />
+                      <button
+                        onClick={(e) => handleToggleDone(e, book.id, !!book.is_done)}
+                        className={`px-3 py-1.5 rounded-full transition-colors flex items-center gap-1.5 text-[11px] font-bold tracking-wide uppercase ${
+                          book.is_done 
+                            ? book.project_type === "reel" && (book.script_score ?? 0) < 70
+                              ? isDarkMode ? "bg-amber-500/20 text-amber-400 border border-amber-500/30" : "bg-amber-100 text-amber-700 border border-amber-200"
+                              : isDarkMode ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30" : "bg-emerald-100 text-emerald-700 border border-emerald-200"
+                            : isDarkMode ? "bg-zinc-800 text-zinc-400 hover:bg-zinc-700 border border-transparent" : "bg-stone-100 text-stone-500 hover:bg-stone-200 border border-transparent"
+                        }`}
+                        title={book.project_type === "reel" && book.is_done && (book.script_score ?? 0) < 70 ? "Needs > 70% score to turn green!" : "Toggle completion"}
+                      >
+                        <CheckCircle2 size={14} />
+                        {book.is_done ? "Done" : "Mark"}
+                      </button>
                     </div>
                   </div>
                 </article>

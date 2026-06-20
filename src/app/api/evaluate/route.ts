@@ -52,12 +52,25 @@ export async function POST(req: Request) {
     let textToEvaluate = "";
     let lessonInstructions = "";
     if (type === "hook" || type === "lesson") {
-      if (!chapterId) return NextResponse.json({ error: "chapterId required for this evaluation" }, { status: 400 });
-      const { data: blocks } = await supabase.from("blocks").select("content").eq("chapter_id", chapterId).order("order_index", { ascending: true });
+      let targetChapterId = chapterId;
+      
+      if (type === "hook" && !chapterId) {
+        // Find the first chapter of the book for the hook
+        const { data: firstChapter } = await supabase.from("chapters").select("id").eq("book_id", bookId).order("created_at", { ascending: true }).limit(1).single();
+        if (firstChapter) {
+          targetChapterId = firstChapter.id;
+        } else {
+          return NextResponse.json({ error: "No chapters found to evaluate." }, { status: 400 });
+        }
+      } else if (!chapterId) {
+        return NextResponse.json({ error: "chapterId required for this evaluation" }, { status: 400 });
+      }
+
+      const { data: blocks } = await supabase.from("blocks").select("content").eq("chapter_id", targetChapterId).order("order_index", { ascending: true });
       textToEvaluate = blocks?.map(b => b.content).join("\n") || "";
       
       if (type === "lesson") {
-        const { data: chapter } = await supabase.from("chapters").select("title, detailed_description").eq("id", chapterId).single();
+        const { data: chapter } = await supabase.from("chapters").select("title, detailed_description").eq("id", targetChapterId).single();
         const lessonDef = learnLessons.find(l => l.title === chapter?.title);
         if (lessonDef && lessonDef.challenges) {
           const challengeIndex = Math.min(starsEarned, 2);

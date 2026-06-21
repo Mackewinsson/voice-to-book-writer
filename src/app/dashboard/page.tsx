@@ -269,14 +269,7 @@ export default function Dashboard() {
     const isPastDue = dueDate ? dueDate < now : false;
     const isDueSoon = dueDate ? (dueDate.getTime() - now.getTime()) <= 3 * 24 * 60 * 60 * 1000 && !isPastDue : false;
     
-    let isGreen = false;
-    if (book.is_done) {
-      if (book.project_type === "reel") {
-        isGreen = (book.script_score ?? 0) >= 70;
-      } else {
-        isGreen = true;
-      }
-    }
+    let isGreen = !!book.is_done;
 
     if (isGreen) {
       return isDarkMode 
@@ -470,12 +463,18 @@ export default function Dashboard() {
                       </p>
                     </div>
 
-                    <div className={`flex items-center justify-between gap-2 mt-4 pt-3 border-t border-dashed ${isDarkMode ? "border-zinc-700" : "border-stone-200"}`} onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
+                    <div className={`flex items-center justify-between gap-2 mt-4 pt-3 border-t border-dashed ${isDarkMode ? "border-zinc-700" : "border-stone-200"}`} onClick={(e) => { e.stopPropagation(); }}>
                       <input 
                         type="date"
                         value={book.due_date ? new Date(book.due_date).toISOString().split('T')[0] : ""}
                         onChange={(e) => handleSetDueDate(e, book.id)}
-                        className={`text-[11px] p-1.5 rounded cursor-pointer border outline-none font-medium ${
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if ('showPicker' in HTMLInputElement.prototype) {
+                            try { e.currentTarget.showPicker(); } catch (err) {}
+                          }
+                        }}
+                        className={`text-[11px] p-1.5 rounded cursor-pointer border outline-none font-medium flex-1 ${
                           isDarkMode 
                             ? "bg-zinc-900/50 border-zinc-700/50 text-zinc-300 focus:border-zinc-500" 
                             : "bg-stone-50 border-stone-200 text-stone-600 focus:border-stone-300"
@@ -486,12 +485,10 @@ export default function Dashboard() {
                         onClick={(e) => handleToggleDone(e, book.id, !!book.is_done)}
                         className={`px-3 py-1.5 rounded-full transition-colors flex items-center gap-1.5 text-[11px] font-bold tracking-wide uppercase ${
                           book.is_done 
-                            ? book.project_type === "reel" && (book.script_score ?? 0) < 70
-                              ? isDarkMode ? "bg-amber-500/20 text-amber-400 border border-amber-500/30" : "bg-amber-100 text-amber-700 border border-amber-200"
-                              : isDarkMode ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30" : "bg-emerald-100 text-emerald-700 border border-emerald-200"
+                            ? isDarkMode ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30" : "bg-emerald-100 text-emerald-700 border border-emerald-200"
                             : isDarkMode ? "bg-zinc-800 text-zinc-400 hover:bg-zinc-700 border border-transparent" : "bg-stone-100 text-stone-500 hover:bg-stone-200 border border-transparent"
                         }`}
-                        title={book.project_type === "reel" && book.is_done && (book.script_score ?? 0) < 70 ? "Needs > 70% score to turn green!" : "Toggle completion"}
+                        title="Toggle completion"
                       >
                         <CheckCircle2 size={14} />
                         {book.is_done ? "Done" : "Mark"}

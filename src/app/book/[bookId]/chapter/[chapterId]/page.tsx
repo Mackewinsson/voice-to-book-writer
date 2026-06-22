@@ -8,7 +8,7 @@ import {
   useCallback,
   type PointerEvent,
 } from "react";
-import { Mic, Moon, Sun, Loader2, Pencil, Lock, Bookmark, User, Compass, Sparkles, ChevronLeft, ClipboardPaste, Check, Trash2, Bot, GripVertical, ChevronDown, Star } from "lucide-react";
+import { Mic, Moon, Sun, Loader2, Pencil, Lock, Bookmark, User, Compass, Sparkles, ChevronLeft, ClipboardPaste, Check, Trash2, Bot, GripVertical, ChevronDown, Star, Keyboard, Send } from "lucide-react";
 import { Reorder, useDragControls } from "framer-motion";
 import { useParams } from "next/navigation";
 import Link from "next/link";
@@ -381,6 +381,8 @@ export default function BookEditor() {
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
   const [profile, setProfile] = useState<{ free_seconds_remaining: number; gemini_api_key?: string } | null>(null);
   const [isPaywallOpen, setIsPaywallOpen] = useState(false);
+  const [inputMode, setInputMode] = useState<"voice" | "write">("voice");
+  const [manualText, setManualText] = useState("");
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordingMimeTypeRef = useRef<string>("audio/webm");
@@ -726,6 +728,45 @@ export default function BookEditor() {
     setBlocks(blocks.filter((b) => b.id !== blockToDelete.id));
     setBlockToDelete(null);
     setIsDeletingBlock(false);
+  };
+
+  const handleManualSubmit = async () => {
+    if (!manualText.trim() || isProcessing || isLoading || !chapterId) return;
+    
+    setIsProcessing(true);
+    try {
+      const supabase = createClient();
+      const newOrderIndex = blocks.length;
+      
+      const { data, error } = await supabase
+        .from("blocks")
+        .insert({
+          chapter_id: chapterId,
+          content: manualText.trim(),
+          note_type: "normal",
+          order_index: newOrderIndex,
+        })
+        .select()
+        .single();
+        
+      if (error) throw error;
+      
+      if (data) {
+        appendBlock(data.id, data.content);
+        setManualText("");
+        
+        if (projectType === "learn") {
+          void handleEvaluateLesson();
+        } else if (projectType === "reel" && chapterTitle.toLowerCase().includes("hook")) {
+          void handleEvaluateHook();
+        }
+      }
+    } catch (err) {
+      console.error("Failed to create text block:", err);
+      showFeedback("Failed to save text");
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const startRecording = async () => {
@@ -1227,7 +1268,7 @@ export default function BookEditor() {
       </main>
 
       <div className="fixed bottom-[calc(3rem+env(safe-area-inset-bottom))] left-0 right-0 z-20 pointer-events-none flex justify-center">
-        <div className="pointer-events-auto flex flex-col items-center space-y-4 w-full max-w-2xl px-4">
+        <div className="pointer-events-auto flex flex-col items-center space-y-4 w-full px-4 sm:px-6 md:max-w-2xl">
           {isRecording && (
             <div
               className={`rounded-xl border border-dashed px-4 py-5 flex gap-3 items-center shadow-lg ${
@@ -1266,7 +1307,7 @@ export default function BookEditor() {
             </div>
           )}
 
-          <div className="flex flex-col items-center gap-4 transition-all">
+          <div className="flex flex-col items-center gap-4 transition-all w-full">
             {feedbackMessage ? (
               <p
                 role="status"
@@ -1296,52 +1337,119 @@ export default function BookEditor() {
               </div>
             )}
 
-            <div className="flex items-center justify-center gap-4 sm:gap-6 relative w-full">
-              {/* Add Manual Block Button */}
+            <div className={`flex bg-black/5 dark:bg-white/5 rounded-full p-1 mb-2 ${isRecording ? 'opacity-0 pointer-events-none' : ''}`}>
               <button
-                onClick={handleAddManualBlock}
-                disabled={isProcessing || isLoading || !chapterId || isRecording}
-                className={`flex items-center justify-center w-12 h-12 rounded-full shadow-lg transition-all hover:scale-105 active:scale-95 disabled:opacity-50 ${
-                  isDarkMode 
-                    ? "bg-zinc-800 text-zinc-300 hover:bg-zinc-700" 
-                    : "bg-white text-stone-600 hover:bg-stone-50"
-                }`}
-                title="Add empty text box"
-              >
-                <ClipboardPaste size={20} />
-              </button>
-
-              <button
-                type="button"
-                onPointerDown={handleMicPointerDown}
-                disabled={isProcessing || isLoading || !chapterId}
-                className={`relative flex touch-manipulation select-none items-center justify-center w-16 h-16 sm:w-20 sm:h-20 rounded-full shadow-2xl transition-all duration-300 ease-out hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100 ${
-                  isRecording
-                    ? "bg-red-500 shadow-red-500/40 ring-4 ring-red-500/20"
-                    : isDarkMode
-                      ? "bg-zinc-100 text-zinc-900 hover:bg-white shadow-white/10"
-                      : "bg-stone-900 text-stone-50 hover:bg-black shadow-black/20"
+                onClick={() => setInputMode('voice')}
+                className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                  inputMode === 'voice' 
+                    ? isDarkMode ? 'bg-zinc-800 text-white shadow-sm' : 'bg-white text-stone-900 shadow-sm'
+                    : isDarkMode ? 'text-zinc-400 hover:text-zinc-200' : 'text-stone-500 hover:text-stone-700'
                 }`}
               >
-                {isRecording && (
-                  <div className="absolute inset-0 rounded-full animate-ping opacity-20 bg-red-400" />
-                )}
-
-                {isProcessing ? (
-                  <Loader2
-                    size={28}
-                    className={`animate-spin ${isDarkMode ? "text-zinc-900" : "text-white"}`}
-                  />
-                ) : (
-                  <Mic
-                    size={28}
-                    className={`transition-colors duration-200 ${isRecording ? "text-white" : ""}`}
-                  />
-                )}
+                <Mic size={14} />
+                Voice
               </button>
+              <button
+                onClick={() => setInputMode('write')}
+                className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                  inputMode === 'write' 
+                    ? isDarkMode ? 'bg-zinc-800 text-white shadow-sm' : 'bg-white text-stone-900 shadow-sm'
+                    : isDarkMode ? 'text-zinc-400 hover:text-zinc-200' : 'text-stone-500 hover:text-stone-700'
+                }`}
+              >
+                <Keyboard size={14} />
+                Write
+              </button>
+            </div>
 
-              {/* Empty placeholder to keep the big button centered */}
-              <div className="w-12 h-12 pointer-events-none" />
+            <div className="flex items-center justify-center gap-4 sm:gap-6 relative w-full pb-4">
+              {inputMode === 'voice' ? (
+                <>
+                  {/* Add Manual Block Button */}
+                  <button
+                    onClick={handleAddManualBlock}
+                    disabled={isProcessing || isLoading || !chapterId || isRecording}
+                    className={`flex items-center justify-center w-12 h-12 rounded-full shadow-lg transition-all hover:scale-105 active:scale-95 disabled:opacity-50 ${
+                      isDarkMode 
+                        ? "bg-zinc-800 text-zinc-300 hover:bg-zinc-700" 
+                        : "bg-white text-stone-600 hover:bg-stone-50"
+                    }`}
+                    title="Add empty text box"
+                  >
+                    <ClipboardPaste size={20} />
+                  </button>
+
+                  <button
+                    type="button"
+                    onPointerDown={handleMicPointerDown}
+                    disabled={isProcessing || isLoading || !chapterId}
+                    className={`relative flex touch-manipulation select-none items-center justify-center w-16 h-16 sm:w-20 sm:h-20 rounded-full shadow-2xl transition-all duration-300 ease-out hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100 ${
+                      isRecording
+                        ? "bg-red-500 shadow-red-500/40 ring-4 ring-red-500/20"
+                        : isDarkMode
+                          ? "bg-zinc-100 text-zinc-900 hover:bg-white shadow-white/10"
+                          : "bg-stone-900 text-stone-50 hover:bg-black shadow-black/20"
+                    }`}
+                  >
+                    {isRecording && (
+                      <div className="absolute inset-0 rounded-full animate-ping opacity-20 bg-red-400" />
+                    )}
+
+                    {isProcessing ? (
+                      <Loader2
+                        size={28}
+                        className={`animate-spin ${isDarkMode ? "text-zinc-900" : "text-white"}`}
+                      />
+                    ) : (
+                      <Mic
+                        size={28}
+                        className={`transition-colors duration-200 ${isRecording ? "text-white" : ""}`}
+                      />
+                    )}
+                  </button>
+
+                  {/* Empty placeholder to keep the big button centered */}
+                  <div className="w-12 h-12 pointer-events-none" />
+                </>
+              ) : (
+                <div className={`flex w-full items-end gap-2 p-2 rounded-2xl shadow-lg border ${
+                  isDarkMode ? "bg-zinc-900/90 border-zinc-700" : "bg-white/90 border-stone-200"
+                }`}>
+                  <textarea
+                    value={manualText}
+                    onChange={(e) => {
+                      setManualText(e.target.value);
+                      e.target.style.height = 'auto';
+                      e.target.style.height = `${Math.min(e.target.scrollHeight, 120)}px`;
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        handleManualSubmit();
+                        e.currentTarget.style.height = 'auto';
+                      }
+                    }}
+                    placeholder="Write your paragraph..."
+                    className={`flex-1 max-h-[120px] resize-none overflow-y-auto bg-transparent outline-none p-3 text-base sm:text-lg ${
+                      isDarkMode ? "text-white placeholder-zinc-500" : "text-stone-900 placeholder-stone-400"
+                    }`}
+                    rows={1}
+                  />
+                  <button
+                    onClick={() => {
+                      handleManualSubmit();
+                      const textarea = document.querySelector('textarea[placeholder="Write your paragraph..."]') as HTMLTextAreaElement;
+                      if (textarea) textarea.style.height = 'auto';
+                    }}
+                    disabled={!manualText.trim() || isProcessing || isLoading}
+                    className={`flex-shrink-0 mb-1 p-3 rounded-xl transition-all disabled:opacity-50 disabled:hover:scale-100 hover:scale-105 active:scale-95 ${
+                      isDarkMode ? "bg-zinc-100 text-zinc-900" : "bg-stone-900 text-white"
+                    }`}
+                  >
+                    {isProcessing ? <Loader2 size={20} className="animate-spin" /> : <Send size={20} />}
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>

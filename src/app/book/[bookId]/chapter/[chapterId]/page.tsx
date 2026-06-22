@@ -8,7 +8,7 @@ import {
   useCallback,
   type PointerEvent,
 } from "react";
-import { Mic, Moon, Sun, Loader2, Pencil, Lock, Bookmark, User, Compass, Sparkles, ChevronLeft, ClipboardPaste, Check, Trash2, Bot, GripVertical, ChevronDown, Star, Keyboard, Send } from "lucide-react";
+import { Mic, Moon, Sun, Loader2, Pencil, Lock, Bookmark, User, Compass, Sparkles, ChevronLeft, ClipboardPaste, Check, Trash2, Bot, GripVertical, ChevronDown, Star, Keyboard, Send, Upload } from "lucide-react";
 import { Reorder, useDragControls } from "framer-motion";
 import { useParams } from "next/navigation";
 import Link from "next/link";
@@ -389,6 +389,8 @@ export default function BookEditor() {
   const [isPaywallOpen, setIsPaywallOpen] = useState(false);
   const [inputMode, setInputMode] = useState<"voice" | "write">("voice");
   const [manualText, setManualText] = useState("");
+  const [isImporting, setIsImporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordingMimeTypeRef = useRef<string>("audio/webm");
@@ -574,6 +576,55 @@ export default function BookEditor() {
     setIsEditingChapter(false);
     const supabase = createClient();
     await supabase.from("chapters").update({ title: finalTitle }).eq("id", chapterId);
+  };
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsImporting(true);
+    try {
+      const text = await file.text();
+      // Split by double newline to get paragraphs
+      const paragraphs = text.split(/\n\s*\n/).map(p => p.trim()).filter(p => p.length > 0);
+      
+      if (paragraphs.length === 0) {
+        setIsImporting(false);
+        if (event.target) event.target.value = '';
+        return;
+      }
+
+      // Find current max order_index
+      const maxOrder = blocks.reduce((max, b: any) => Math.max(max, b.order_index ?? 0), -1);
+      
+      // Prepare blocks to insert
+      const newBlocks = paragraphs.map((p, index) => ({
+        chapter_id: chapterId,
+        content: p,
+        order_index: maxOrder + 1 + index,
+        note_type: 'normal'
+      }));
+
+      const supabase = createClient();
+      const { data, error } = await supabase.from('blocks').insert(newBlocks).select();
+
+      if (error) throw error;
+
+      if (data) {
+        setBlocks(prev => [...prev, ...data.map(b => ({
+          id: b.id,
+          text: b.content,
+          note_type: b.note_type || 'normal',
+          order_index: b.order_index
+        }))]);
+      }
+    } catch (err) {
+      console.error("Failed to import file:", err);
+      alert("Failed to import file.");
+    } finally {
+      setIsImporting(false);
+      if (event.target) event.target.value = '';
+    }
   };
 
   const handleEvaluateHook = async () => {
@@ -1112,6 +1163,18 @@ export default function BookEditor() {
           </div>
         </div>
         <div className="flex shrink-0 gap-4 items-center">
+          <input type="file" ref={fileInputRef} className="hidden" accept=".txt,.md" onChange={handleFileUpload} />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isImporting}
+            className={`p-2 rounded-full transition-colors flex items-center gap-2 ${
+              isDarkMode ? "hover:bg-white/10 text-zinc-400" : "hover:bg-black/5 text-stone-500"
+            }`}
+            aria-label="Import Markdown/Text file"
+            title="Import Markdown/Text file"
+          >
+            {isImporting ? <Loader2 size={20} className="animate-spin" /> : <Upload size={20} />}
+          </button>
           <button
             onClick={toggleDarkMode}
             className={`p-2 rounded-full transition-colors ${

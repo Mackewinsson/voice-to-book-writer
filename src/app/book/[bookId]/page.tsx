@@ -2,16 +2,122 @@
 
 import { useState, useEffect, useRef } from "react";
 import { createClient } from "@/utils/supabase/client";
-import { Loader2, Plus, Moon, Sun, ChevronLeft, FileText, Download, Pencil, Trash2, List, ScrollText, Lock, CheckCircle2, Play, Trophy, Star } from "lucide-react";
+import { Loader2, Plus, Moon, Sun, ChevronLeft, FileText, Download, Pencil, Trash2, List, ScrollText, Lock, CheckCircle2, Play, Trophy, Star, GripVertical } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { UserButton, useAuth } from "@clerk/nextjs";
 import Link from "next/link";
 import ConfirmModal from "@/components/ConfirmModal";
 import ScoreWidget from "@/components/ScoreWidget";
+import { Reorder, useDragControls } from "framer-motion";
 
 type BookRecord = { id: string; title: string; project_type?: string; script_score?: number; script_feedback?: string; hook_score?: number; hook_feedback?: string; };
-type ChapterRecord = { id: string; title: string; created_at: string; word_count?: number; is_passed?: boolean; lesson_score?: number; };
+type ChapterRecord = { id: string; title: string; created_at: string; word_count?: number; is_passed?: boolean; lesson_score?: number; order_index?: number; };
 type BlockRecord = { id: string; chapter_id: string; content: string; note_type: string; order_index: number; };
+
+function ReorderChapterItem({
+  chapter,
+  index,
+  isDarkMode,
+  bookId,
+  editingChapterId,
+  editingChapterTitle,
+  setEditingChapterTitle,
+  handleChapterTitleSave,
+  startEditingChapter,
+  setChapterToDelete
+}: any) {
+  const dragControls = useDragControls();
+
+  return (
+    <Reorder.Item
+      as="div"
+      value={chapter}
+      id={chapter.id}
+      dragListener={false}
+      dragControls={dragControls}
+      className="relative group"
+    >
+      <div
+        className={`absolute left-2 sm:left-3 top-1/2 -translate-y-1/2 p-1.5 cursor-grab active:cursor-grabbing rounded-md opacity-20 hover:opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:hover:bg-black/5 dark:sm:hover:bg-white/5 transition-all z-10 ${isDarkMode ? "text-zinc-400" : "text-stone-400"}`}
+        onPointerDown={(e) => dragControls.start(e)}
+        title="Drag to reorder"
+      >
+        <GripVertical size={18} />
+      </div>
+
+      <Link href={`/book/${bookId}/chapter/${chapter.id}`} className="block">
+        <article className={`group flex flex-col justify-between p-5 pl-10 sm:pl-12 rounded-2xl border transition-all ${
+          isDarkMode 
+            ? "bg-zinc-900/60 border-zinc-700/80 hover:bg-zinc-800/80 hover:border-zinc-600 shadow-black/40 hover:-translate-y-1 hover:shadow-lg" 
+            : "bg-white/80 border-stone-200/90 hover:bg-white hover:border-stone-300 shadow-stone-200/50 hover:-translate-y-1 hover:shadow-lg"
+        }`}>
+          <div className="flex justify-between items-start">
+            <div className="flex items-center gap-3">
+              <div className={`flex items-center justify-center w-10 h-10 rounded-full font-medium ${
+                isDarkMode ? "bg-zinc-800 text-zinc-300" : "bg-stone-100 text-stone-600 group-hover:bg-stone-200"
+              } transition-colors`}>
+                {index + 1}
+              </div>
+              <div>
+                {editingChapterId === chapter.id ? (
+                  <input
+                    autoFocus
+                    value={editingChapterTitle}
+                    onChange={(e) => setEditingChapterTitle(e.target.value)}
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                    onBlur={() => handleChapterTitleSave(chapter.id)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === "Escape") {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleChapterTitleSave(chapter.id);
+                      }
+                    }}
+                    className={`font-medium text-lg tracking-tight bg-transparent outline-none border-b border-dashed w-full ${
+                      isDarkMode ? "text-zinc-100 border-zinc-500" : "text-stone-900 border-stone-400"
+                    }`}
+                  />
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-medium text-lg tracking-tight line-clamp-1">{chapter.title}</h3>
+                  </div>
+                )}
+                <div className="flex items-center gap-2 mt-0.5">
+                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider ${isDarkMode ? "bg-zinc-800 text-zinc-400" : "bg-stone-200 text-stone-500"}`}>
+                    {(chapter.word_count || 0).toLocaleString()} words
+                  </span>
+                  <p className={`text-xs ${isDarkMode ? "text-zinc-500" : "text-stone-500"}`}>
+                    {new Date(chapter.created_at).toLocaleDateString()}
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="flex gap-1 relative z-20">
+              <button 
+                onClick={(e) => { e.preventDefault(); startEditingChapter(e, chapter); }}
+                className={`p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all ${isDarkMode ? "hover:bg-zinc-700 text-zinc-400" : "hover:bg-stone-100 text-stone-400"}`}
+                title="Edit chapter name"
+              >
+                <Pencil size={16} />
+              </button>
+              <button 
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setChapterToDelete(chapter);
+                }}
+                className={`p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all ${isDarkMode ? "hover:bg-red-500/20 text-red-400" : "hover:bg-red-50 text-red-500"}`}
+                title="Delete chapter"
+              >
+                <Trash2 size={16} />
+              </button>
+            </div>
+          </div>
+        </article>
+      </Link>
+    </Reorder.Item>
+  );
+}
 
 export default function ChapterList() {
   const router = useRouter();
@@ -91,13 +197,26 @@ export default function ChapterList() {
         countsData.forEach((row: { chapter_id: string; word_count: number }) => countsMap.set(row.chapter_id, row.word_count));
       }
 
-      const { data: chaptersData } = await supabase.from("chapters").select("*").eq("book_id", bookId).order("created_at", { ascending: true });
+      const { data: chaptersData } = await supabase.from("chapters").select("*").eq("book_id", bookId).order("order_index", { ascending: true }).order("created_at", { ascending: true });
       if (chaptersData) setChapters(chaptersData.map(c => ({ ...c, word_count: countsMap.get(c.id) || 0 })));
 
       setIsLoading(false);
     }
     fetchData();
   }, [bookId, isLoaded, userId]);
+
+  const handleReorderChapters = async (newChapters: ChapterRecord[]) => {
+    setChapters(newChapters);
+    const supabase = createClient();
+    
+    for (let i = 0; i < newChapters.length; i++) {
+      const chapter = newChapters[i];
+      if (chapter.order_index !== i) {
+        chapter.order_index = i;
+        await supabase.from("chapters").update({ order_index: i }).eq("id", chapter.id);
+      }
+    }
+  };
 
   useEffect(() => {
     async function fetchManuscript() {
@@ -563,87 +682,25 @@ export default function ChapterList() {
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Reorder.Group axis="y" values={chapters} onReorder={handleReorderChapters} className="flex flex-col gap-4">
             {chapters.map((chapter, index) => {
-              
-              const CardContent = (
-                <article className={`group flex flex-col justify-between p-5 rounded-2xl border transition-all ${
-                  isDarkMode 
-                    ? "bg-zinc-900/60 border-zinc-700/80 hover:bg-zinc-800/80 hover:border-zinc-600 shadow-black/40 hover:-translate-y-1 hover:shadow-lg" 
-                    : "bg-white/80 border-stone-200/90 hover:bg-white hover:border-stone-300 shadow-stone-200/50 hover:-translate-y-1 hover:shadow-lg"
-                }`}>
-                  <div className="flex justify-between items-start">
-                    <div className="flex items-center gap-3">
-                      <div className={`flex items-center justify-center w-10 h-10 rounded-full font-medium ${
-                        isDarkMode ? "bg-zinc-800 text-zinc-300" : "bg-stone-100 text-stone-600 group-hover:bg-stone-200"
-                      } transition-colors`}>
-                        {index + 1}
-                      </div>
-                      <div>
-                        {editingChapterId === chapter.id ? (
-                          <input
-                            autoFocus
-                            value={editingChapterTitle}
-                            onChange={(e) => setEditingChapterTitle(e.target.value)}
-                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
-                            onBlur={() => handleChapterTitleSave(chapter.id)}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter" || e.key === "Escape") {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                handleChapterTitleSave(chapter.id);
-                              }
-                            }}
-                            className={`font-medium text-lg tracking-tight bg-transparent outline-none border-b border-dashed w-full ${
-                              isDarkMode ? "text-zinc-100 border-zinc-500" : "text-stone-900 border-stone-400"
-                            }`}
-                          />
-                        ) : (
-                          <div className="flex items-center gap-2">
-                            <h3 className="font-medium text-lg tracking-tight line-clamp-1">{chapter.title}</h3>
-                          </div>
-                        )}
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider ${isDarkMode ? "bg-zinc-800 text-zinc-400" : "bg-stone-200 text-stone-500"}`}>
-                            {(chapter.word_count || 0).toLocaleString()} words
-                          </span>
-                          <p className={`text-xs ${isDarkMode ? "text-zinc-500" : "text-stone-500"}`}>
-                            {new Date(chapter.created_at).toLocaleDateString()}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex gap-1">
-                      <button 
-                        onClick={(e) => startEditingChapter(e, chapter)}
-                        className={`p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all ${isDarkMode ? "hover:bg-zinc-700 text-zinc-400" : "hover:bg-stone-100 text-stone-400"}`}
-                        title="Edit chapter name"
-                      >
-                        <Pencil size={16} />
-                      </button>
-                      <button 
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          setChapterToDelete(chapter);
-                        }}
-                        className={`p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all ${isDarkMode ? "hover:bg-red-500/20 text-red-400" : "hover:bg-red-50 text-red-500"}`}
-                        title="Delete chapter"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  </div>
-                </article>
-              );
-
               return (
-                <Link href={`/book/${bookId}/chapter/${chapter.id}`} key={chapter.id}>
-                  {CardContent}
-                </Link>
+                <ReorderChapterItem
+                  key={chapter.id}
+                  chapter={chapter}
+                  index={index}
+                  isDarkMode={isDarkMode}
+                  bookId={bookId}
+                  editingChapterId={editingChapterId}
+                  editingChapterTitle={editingChapterTitle}
+                  setEditingChapterTitle={setEditingChapterTitle}
+                  handleChapterTitleSave={handleChapterTitleSave}
+                  startEditingChapter={startEditingChapter}
+                  setChapterToDelete={setChapterToDelete}
+                />
               );
             })}
-          </div>
+          </Reorder.Group>
         )}
 
       </main>

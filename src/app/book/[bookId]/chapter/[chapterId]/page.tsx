@@ -268,53 +268,59 @@ Please act as an expert researcher and author assistant. Conduct a deep, compreh
         </p>
       )}
 
-      {/* Mobile action bar */}
+      {/* Bottom bar with word count and mobile actions */}
       <div
-        className={`mt-3 flex items-center justify-end gap-1 border-t pt-2 sm:hidden ${
+        className={`mt-3 flex items-center justify-between gap-1 border-t pt-2 ${
           isDarkMode ? "border-zinc-700/60" : "border-stone-200/80"
         }`}
       >
-        {isEditing ? (
-          <button
-            type="button"
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={handleLock}
-            aria-label="Lock paragraph"
-            className={`inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg transition-all ${lockBtnClass}`}
-          >
-            <Lock size={15} strokeWidth={1.75} />
-          </button>
-        ) : (
-          <>
-            {block.note_type === 'investigate_later' && (
+        <span className={`text-[10px] font-bold uppercase tracking-wider ${isDarkMode ? "text-zinc-500" : "text-stone-400"}`}>
+          {block.text.trim().split(/\s+/).filter(Boolean).length} palabras
+        </span>
+
+        <div className="flex items-center gap-1 sm:hidden">
+          {isEditing ? (
+            <button
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={handleLock}
+              aria-label="Lock paragraph"
+              className={`inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg transition-all ${lockBtnClass}`}
+            >
+              <Lock size={15} strokeWidth={1.75} />
+            </button>
+          ) : (
+            <>
+              {block.note_type === 'investigate_later' && (
+                <button
+                  type="button"
+                  onClick={handleCopyPrompt}
+                  aria-label="Copy prompt for AI"
+                  title="Copy prompt for AI investigation"
+                  className={`inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg border transition-all ${askAiBtnClass}`}
+                >
+                  {isCopied ? <Check size={16} strokeWidth={2} /> : <Bot size={16} strokeWidth={2} />}
+                </button>
+              )}
               <button
                 type="button"
-                onClick={handleCopyPrompt}
-                aria-label="Copy prompt for AI"
-                title="Copy prompt for AI investigation"
-                className={`inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg border transition-all ${askAiBtnClass}`}
+                onClick={onStartEdit}
+                aria-label="Edit paragraph"
+                className={`inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg transition-all ${actionBtnClass}`}
               >
-                {isCopied ? <Check size={16} strokeWidth={2} /> : <Bot size={16} strokeWidth={2} />}
+                <Pencil size={15} strokeWidth={1.75} />
               </button>
-            )}
-            <button
-              type="button"
-              onClick={onStartEdit}
-              aria-label="Edit paragraph"
-              className={`inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg transition-all ${actionBtnClass}`}
-            >
-              <Pencil size={15} strokeWidth={1.75} />
-            </button>
-            <button
-              type="button"
-              onClick={onDelete}
-              aria-label="Delete paragraph"
-              className={`inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg transition-all ${deleteBtnClass}`}
-            >
-              <Trash2 size={15} strokeWidth={1.75} />
-            </button>
-          </>
-        )}
+              <button
+                type="button"
+                onClick={onDelete}
+                aria-label="Delete paragraph"
+                className={`inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg transition-all ${deleteBtnClass}`}
+              >
+                <Trash2 size={15} strokeWidth={1.75} />
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Desktop action cluster */}
@@ -1415,26 +1421,31 @@ export default function BookEditor() {
                 <div className={`flex w-full items-end gap-2 p-2 rounded-2xl shadow-lg border ${
                   isDarkMode ? "bg-zinc-900/90 border-zinc-700" : "bg-white/90 border-stone-200"
                 }`}>
-                  <textarea
-                    value={manualText}
-                    onChange={(e) => {
-                      setManualText(e.target.value);
-                      e.target.style.height = 'auto';
-                      e.target.style.height = `${Math.min(e.target.scrollHeight, 120)}px`;
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && !e.shiftKey) {
-                        e.preventDefault();
-                        handleManualSubmit();
-                        e.currentTarget.style.height = 'auto';
-                      }
-                    }}
-                    placeholder="Write your paragraph..."
-                    className={`flex-1 max-h-[120px] resize-none overflow-y-auto bg-transparent outline-none p-3 text-base sm:text-lg ${
-                      isDarkMode ? "text-white placeholder-zinc-500" : "text-stone-900 placeholder-stone-400"
-                    }`}
-                    rows={1}
-                  />
+                  <div className="flex-1 flex flex-col">
+                    <textarea
+                      value={manualText}
+                      onChange={(e) => {
+                        setManualText(e.target.value);
+                        e.target.style.height = 'auto';
+                        e.target.style.height = `${Math.min(e.target.scrollHeight, 120)}px`;
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          handleManualSubmit();
+                          e.currentTarget.style.height = 'auto';
+                        }
+                      }}
+                      placeholder="Write your paragraph..."
+                      className={`w-full max-h-[120px] resize-none overflow-y-auto bg-transparent outline-none p-3 pb-1 text-base sm:text-lg ${
+                        isDarkMode ? "text-white placeholder-zinc-500" : "text-stone-900 placeholder-stone-400"
+                      }`}
+                      rows={1}
+                    />
+                    <div className={`px-3 pb-1 text-[10px] font-bold uppercase tracking-wider ${isDarkMode ? "text-zinc-600" : "text-stone-400"}`}>
+                      {manualText.trim().split(/\s+/).filter(Boolean).length} palabras
+                    </div>
+                  </div>
                   <button
                     onClick={() => {
                       handleManualSubmit();

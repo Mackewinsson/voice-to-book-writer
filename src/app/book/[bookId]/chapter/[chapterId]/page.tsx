@@ -466,12 +466,26 @@ export default function BookEditor() {
 
   const scrollToActive = useCallback(() => {
     requestAnimationFrame(() => {
+      if (recordingTargetBlockId) {
+        document.getElementById(recordingTargetBlockId)?.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+        return;
+      }
+      if (highlightBlockId) {
+        document.getElementById(highlightBlockId)?.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+        return;
+      }
       bottomAnchorRef.current?.scrollIntoView({
         behavior: "smooth",
         block: "center",
       });
     });
-  }, []);
+  }, [recordingTargetBlockId, highlightBlockId]);
 
   const showFeedback = useCallback((message: string) => {
     if (feedbackTimeoutRef.current) {

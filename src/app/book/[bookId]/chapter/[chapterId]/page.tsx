@@ -8,7 +8,7 @@ import {
   useCallback,
   type PointerEvent,
 } from "react";
-import { Mic, Moon, Sun, Loader2, Pencil, Lock, Bookmark, User, Compass, Sparkles, ChevronLeft, ClipboardPaste, Check, Trash2, Bot, GripVertical, ChevronDown, Star, Keyboard, Send, Upload } from "lucide-react";
+import { Mic, Moon, Sun, Loader2, Pencil, Lock, Bookmark, User, Compass, Sparkles, ChevronLeft, ClipboardPaste, Check, Trash2, Bot, GripVertical, ChevronDown, Star, Keyboard, Send, Upload, Plus } from "lucide-react";
 import { Reorder, useDragControls } from "framer-motion";
 import { useParams } from "next/navigation";
 import Link from "next/link";
@@ -105,28 +105,57 @@ function autoResizeTextarea(el: HTMLTextAreaElement | null) {
   el.style.height = `${el.scrollHeight}px`;
 }
 
+function InsertButton({ onClick, isDarkMode, position }: { onClick: () => void, isDarkMode: boolean, position: 'top' | 'bottom' }) {
+  const positionClass = position === 'top' ? '-top-2.5' : '-bottom-2.5';
+  return (
+    <div className={`absolute ${positionClass} left-0 right-0 flex justify-center opacity-0 hover:opacity-100 transition-opacity z-20`}>
+      <div className={`absolute left-0 right-0 top-1/2 -translate-y-1/2 h-[1px] ${isDarkMode ? "bg-indigo-500/50" : "bg-indigo-400/50"}`} />
+      <button
+        type="button"
+        onClick={onClick}
+        className={`relative z-10 flex items-center justify-center w-6 h-6 rounded-full border shadow-sm transition-transform hover:scale-110 ${
+          isDarkMode ? "bg-zinc-800 border-indigo-500/50 text-indigo-400 hover:bg-zinc-700" : "bg-white border-indigo-300 text-indigo-500 hover:bg-indigo-50"
+        }`}
+        title="Insert new paragraph here"
+      >
+        <Plus size={14} />
+      </button>
+    </div>
+  );
+}
+
 function TextBlock({
   block,
   isDarkMode,
   isEditing,
   isHighlighted,
+  isRecordingTarget,
+  isFirst,
   onStartEdit,
   onChange,
   onSave,
   onEndEdit,
   onChangeNoteType,
   onDelete,
+  onInsertAbove,
+  onInsertBelow,
+  onRecordClick,
 }: {
   block: Block;
   isDarkMode: boolean;
   isEditing: boolean;
   isHighlighted: boolean;
+  isRecordingTarget?: boolean;
+  isFirst?: boolean;
   onStartEdit: () => void;
   onChange: (text: string) => void;
   onSave: (text: string, type?: string) => void;
   onEndEdit: () => void;
   onChangeNoteType: (id: string, type: string) => void;
   onDelete: () => void;
+  onInsertAbove?: () => void;
+  onInsertBelow?: () => void;
+  onRecordClick?: () => void;
 }) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const dragControls = useDragControls();
@@ -254,6 +283,12 @@ Please act as an expert researcher and author assistant. Conduct a deep, compreh
               if (e.key === "Escape") {
                 e.preventDefault();
                 onEndEdit();
+              } else if (e.key === " " && (!textareaRef.current?.value || textareaRef.current.value.trim() === "") && onRecordClick) {
+                e.preventDefault();
+                onRecordClick();
+              } else if (e.ctrlKey && e.key === " " && onRecordClick) {
+                e.preventDefault();
+                onRecordClick();
               }
             }}
             rows={1}
@@ -261,11 +296,17 @@ Please act as an expert researcher and author assistant. Conduct a deep, compreh
           />
         </div>
       ) : (
-        <p
-          className={`whitespace-pre-wrap text-base leading-relaxed sm:text-xl sm:leading-7 font-normal transition-colors ${lockedTextClass}`}
+        <div
+          className={`whitespace-pre-wrap text-base leading-relaxed sm:text-xl sm:leading-7 font-normal transition-colors min-h-[1.5em] ${lockedTextClass}`}
         >
-          {block.text}
-        </p>
+          {isRecordingTarget ? (
+            <span className="flex items-center gap-2 text-red-500 opacity-80 animate-pulse text-sm">
+              <Mic size={16} /> Escuchando...
+            </span>
+          ) : (
+            block.text
+          )}
+        </div>
       )}
 
       {/* Bottom bar with word count and mobile actions */}
@@ -366,6 +407,9 @@ Please act as an expert researcher and author assistant. Conduct a deep, compreh
           </button>
         </div>
       )}
+      
+      {isFirst && onInsertAbove && <InsertButton onClick={onInsertAbove} isDarkMode={isDarkMode} position="top" />}
+      {onInsertBelow && <InsertButton onClick={onInsertBelow} isDarkMode={isDarkMode} position="bottom" />}
     </Reorder.Item>
   );
 }
@@ -382,6 +426,7 @@ export default function BookEditor() {
   const [isLoading, setIsLoading] = useState(true);
   const [editingBlockId, setEditingBlockId] = useState<string | null>(null);
   const [highlightBlockId, setHighlightBlockId] = useState<string | null>(null);
+  const [recordingTargetBlockId, setRecordingTargetBlockId] = useState<string | null>(null);
   const [blockToDelete, setBlockToDelete] = useState<Block | null>(null);
   const [isDeletingBlock, setIsDeletingBlock] = useState(false);
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
@@ -742,6 +787,50 @@ export default function BookEditor() {
     window.setTimeout(() => setHighlightBlockId(null), 2000);
   };
 
+  const handleInsertBlock = async (index: number) => {
+    if (!chapterId || isProcessing || isRecording) return;
+    
+    setIsProcessing(true);
+    try {
+      const supabase = createClient();
+      
+      const { data, error } = await supabase
+        .from("blocks")
+        .insert({
+          chapter_id: chapterId,
+          content: "",
+          note_type: "normal",
+          order_index: index + 1,
+        })
+        .select()
+        .single();
+        
+      if (error) throw error;
+      
+      if (data) {
+        const blocksToShift = blocks.slice(index + 1);
+        if (blocksToShift.length > 0) {
+          const shiftPromises = blocksToShift.map((b, i) => 
+            supabase.from("blocks").update({ order_index: index + 2 + i }).eq("id", b.id)
+          );
+          await Promise.all(shiftPromises);
+        }
+        
+        const newBlock = { id: data.id, text: data.content, note_type: data.note_type || "normal" };
+        const finalBlocks = [...blocks];
+        finalBlocks.splice(index + 1, 0, newBlock);
+        
+        setBlocks(finalBlocks);
+        startEdit(data.id);
+      }
+    } catch (err) {
+      console.error("Failed to insert text box:", err);
+      showFeedback("Failed to create text box");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   const handleAddManualBlock = async () => {
     if (!chapterId || isProcessing || isRecording) return;
     
@@ -859,11 +948,18 @@ export default function BookEditor() {
       return;
     }
 
+    let targetId: string | null = null;
     if (editingBlockId) {
       const block = blocks.find((b) => b.id === editingBlockId);
-      if (block) await handleBlockSave(editingBlockId, block.text);
+      if (block) {
+        targetId = editingBlockId;
+        if (block.text.trim() !== "") {
+          await handleBlockSave(editingBlockId, block.text);
+        }
+      }
       setEditingBlockId(null);
     }
+    setRecordingTargetBlockId(targetId);
 
     try {
       const mimeType = getSupportedAudioMimeType();
@@ -965,38 +1061,69 @@ export default function BookEditor() {
 
       if (data.empty || !newText) {
         showFeedback("No se ha detectado voz. Toca el micro e inténtalo de nuevo.");
+        setRecordingTargetBlockId(null);
         return;
       }
 
       if (chapterId) {
-        const newOrderIndex = blocks.length;
-
+        let blockToUpdateId = recordingTargetBlockId;
         const supabase = createClient();
-        const { data: newBlock, error } = await supabase
-          .from("blocks")
-          .insert({
-            chapter_id: chapterId,
-            content: newText,
-            order_index: newOrderIndex,
-            note_type: 'normal'
-          })
-          .select()
-          .single();
 
-        if (error) {
-          console.error("Failed to save block to DB", error);
-          appendBlock(Date.now().toString(), newText);
-        } else if (newBlock) {
-          appendBlock(newBlock.id, newBlock.content);
-          
-          // Auto-evaluate when new audio is saved
-          if (projectType === "learn") {
-            void handleEvaluateLesson();
-          } else if (projectType === "reel" && chapterTitle.toLowerCase().includes("hook")) {
-            void handleEvaluateHook();
+        if (blockToUpdateId) {
+          const existingBlock = blocks.find(b => b.id === blockToUpdateId);
+          const currentText = existingBlock?.text || "";
+          const combinedText = currentText.trim() ? `${currentText.trim()} ${newText}` : newText;
+
+          const { error } = await supabase
+            .from("blocks")
+            .update({ content: combinedText })
+            .eq("id", blockToUpdateId);
+
+          if (!error) {
+            setBlocks(prev => prev.map(b => b.id === blockToUpdateId ? { ...b, text: combinedText } : b));
+            setHighlightBlockId(blockToUpdateId);
+            window.setTimeout(() => setHighlightBlockId(null), 2000);
+            
+            if (projectType === "learn") {
+              void handleEvaluateLesson();
+            } else if (projectType === "reel" && chapterTitle.toLowerCase().includes("hook")) {
+              void handleEvaluateHook();
+            }
+          } else {
+            console.error("Failed to update target block", error);
+            blockToUpdateId = null;
+          }
+        }
+
+        if (!blockToUpdateId) {
+          const newOrderIndex = blocks.length;
+
+          const { data: newBlock, error } = await supabase
+            .from("blocks")
+            .insert({
+              chapter_id: chapterId,
+              content: newText,
+              order_index: newOrderIndex,
+              note_type: 'normal'
+            })
+            .select()
+            .single();
+
+          if (error) {
+            console.error("Failed to save block to DB", error);
+            appendBlock(Date.now().toString(), newText);
+          } else if (newBlock) {
+            appendBlock(newBlock.id, newBlock.content);
+            
+            if (projectType === "learn") {
+              void handleEvaluateLesson();
+            } else if (projectType === "reel" && chapterTitle.toLowerCase().includes("hook")) {
+              void handleEvaluateHook();
+            }
           }
         }
       }
+      setRecordingTargetBlockId(null);
 
       setProfile(prev => {
         if (!prev || prev.gemini_api_key) return prev;
@@ -1316,19 +1443,24 @@ export default function BookEditor() {
           )}
 
         <Reorder.Group axis="y" values={blocks} onReorder={handleReorder} as="div" className="space-y-5 w-full">
-          {blocks.map((block) => (
+          {blocks.map((block, index) => (
             <TextBlock
               key={block.id}
               block={block}
               isDarkMode={isDarkMode}
               isEditing={editingBlockId === block.id}
               isHighlighted={highlightBlockId === block.id}
+              isRecordingTarget={recordingTargetBlockId === block.id}
+              isFirst={index === 0}
               onStartEdit={() => startEdit(block.id)}
               onChange={(text) => handleBlockEdit(block.id, text)}
               onSave={(text, type) => handleBlockSave(block.id, text, type)}
               onEndEdit={endEdit}
               onChangeNoteType={handleChangeNoteType}
               onDelete={() => setBlockToDelete(block)}
+              onInsertAbove={() => handleInsertBlock(-1)}
+              onInsertBelow={() => handleInsertBlock(index)}
+              onRecordClick={handleRecordClick}
             />
           ))}
         </Reorder.Group>

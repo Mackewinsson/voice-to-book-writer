@@ -14,9 +14,25 @@ type BookRecord = { id: string; title: string; project_type?: string; script_sco
 type ChapterRecord = { id: string; title: string; created_at: string; word_count?: number; is_passed?: boolean; lesson_score?: number; order_index?: number; };
 type BlockRecord = { id: string; chapter_id: string; content: string; note_type: string; order_index: number; };
 
+function InsertButton({ onClick, isDarkMode, label }: { onClick: () => void; isDarkMode: boolean; label?: string }) {
+  return (
+    <div className="relative h-4 group/insert -my-2 z-20 flex items-center justify-center">
+      <div className={`absolute inset-x-8 sm:inset-x-12 h-px bg-red-500/50 scale-x-0 group-hover/insert:scale-x-100 transition-transform origin-center duration-300`} />
+      <button
+        onClick={(e) => { e.preventDefault(); e.stopPropagation(); onClick(); }}
+        className={`absolute w-6 h-6 rounded-full flex items-center justify-center opacity-0 group-hover/insert:opacity-100 transition-opacity bg-red-500 text-white shadow-md shadow-red-500/20`}
+        title={label || "Insert here"}
+      >
+        <Plus size={14} />
+      </button>
+    </div>
+  );
+}
+
 function ReorderChapterItem({
   chapter,
   index,
+  isFirst,
   isDarkMode,
   bookId,
   editingChapterId,
@@ -24,7 +40,9 @@ function ReorderChapterItem({
   setEditingChapterTitle,
   handleChapterTitleSave,
   startEditingChapter,
-  setChapterToDelete
+  setChapterToDelete,
+  onInsertAbove,
+  onInsertBelow,
 }: any) {
   const dragControls = useDragControls();
 
@@ -37,6 +55,12 @@ function ReorderChapterItem({
       dragControls={dragControls}
       className="relative group"
     >
+      {isFirst && onInsertAbove && (
+        <div className="absolute -top-3 left-0 right-0 z-20">
+          <InsertButton onClick={onInsertAbove} isDarkMode={isDarkMode} label="Insert chapter at beginning" />
+        </div>
+      )}
+
       <div
         className={`absolute left-2 sm:left-3 top-1/2 -translate-y-1/2 p-1.5 cursor-grab active:cursor-grabbing rounded-md opacity-20 hover:opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:hover:bg-black/5 dark:sm:hover:bg-white/5 transition-all z-10 ${isDarkMode ? "text-zinc-400" : "text-stone-400"}`}
         onPointerDown={(e) => dragControls.start(e)}
@@ -115,6 +139,12 @@ function ReorderChapterItem({
           </div>
         </article>
       </Link>
+
+      {onInsertBelow && (
+        <div className="absolute -bottom-3 left-0 right-0 z-20">
+          <InsertButton onClick={onInsertBelow} isDarkMode={isDarkMode} label="Insert chapter here" />
+        </div>
+      )}
     </Reorder.Item>
   );
 }
@@ -256,7 +286,7 @@ export default function ChapterList() {
     
     const { data: chapter, error } = await supabase
       .from("chapters")
-      .insert({ book_id: bookId, title: newTitle })
+      .insert({ book_id: bookId, title: newTitle, order_index: chapters.length })
       .select()
       .single();
 
@@ -267,6 +297,41 @@ export default function ChapterList() {
     }
 
     router.push(`/book/${bookId}/chapter/${chapter.id}`);
+  };
+
+  const handleInsertChapter = async (insertAfterIndex: number) => {
+    if (!bookId) return;
+    setIsCreating(true);
+    const supabase = createClient();
+    
+    const newIndex = insertAfterIndex + 1;
+    const newTitle = `Chapter ${newIndex + 1}`;
+    
+    const { data: chapter, error } = await supabase
+      .from("chapters")
+      .insert({ book_id: bookId, title: newTitle, order_index: newIndex })
+      .select()
+      .single();
+
+    if (error || !chapter) {
+      console.error("Failed to insert chapter", error);
+      setIsCreating(false);
+      return;
+    }
+
+    const updatedChapters = [...chapters];
+    updatedChapters.splice(newIndex, 0, { ...chapter, word_count: 0 });
+    
+    for (let i = newIndex + 1; i < updatedChapters.length; i++) {
+      updatedChapters[i].order_index = i;
+      await supabase.from("chapters").update({ order_index: i }).eq("id", updatedChapters[i].id);
+    }
+
+    setChapters(updatedChapters);
+    setIsCreating(false);
+    
+    setEditingChapterId(chapter.id);
+    setEditingChapterTitle(chapter.title);
   };
 
   const handleExportWord = async () => {
@@ -689,6 +754,7 @@ export default function ChapterList() {
                   key={chapter.id}
                   chapter={chapter}
                   index={index}
+                  isFirst={index === 0}
                   isDarkMode={isDarkMode}
                   bookId={bookId}
                   editingChapterId={editingChapterId}
@@ -697,6 +763,8 @@ export default function ChapterList() {
                   handleChapterTitleSave={handleChapterTitleSave}
                   startEditingChapter={startEditingChapter}
                   setChapterToDelete={setChapterToDelete}
+                  onInsertAbove={() => handleInsertChapter(-1)}
+                  onInsertBelow={() => handleInsertChapter(index)}
                 />
               );
             })}

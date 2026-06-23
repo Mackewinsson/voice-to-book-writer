@@ -108,14 +108,12 @@ function autoResizeTextarea(el: HTMLTextAreaElement | null) {
 function InsertButton({ onClick, isDarkMode, position }: { onClick: () => void, isDarkMode: boolean, position: 'top' | 'bottom' }) {
   const positionClass = position === 'top' ? '-top-2.5' : '-bottom-2.5';
   return (
-    <div className={`absolute ${positionClass} left-0 right-0 flex justify-center opacity-0 hover:opacity-100 transition-opacity z-20`}>
-      <div className={`absolute left-0 right-0 top-1/2 -translate-y-1/2 h-[1px] ${isDarkMode ? "bg-indigo-500/50" : "bg-indigo-400/50"}`} />
+    <div className={`absolute ${positionClass} left-0 right-0 h-4 group/insert flex items-center justify-center z-20`}>
+      <div className={`absolute inset-x-8 sm:inset-x-12 h-px bg-red-500/50 scale-x-0 group-hover/insert:scale-x-100 transition-transform origin-center duration-300`} />
       <button
         type="button"
-        onClick={onClick}
-        className={`relative z-10 flex items-center justify-center w-6 h-6 rounded-full border shadow-sm transition-transform hover:scale-110 ${
-          isDarkMode ? "bg-zinc-800 border-indigo-500/50 text-indigo-400 hover:bg-zinc-700" : "bg-white border-indigo-300 text-indigo-500 hover:bg-indigo-50"
-        }`}
+        onClick={(e) => { e.preventDefault(); e.stopPropagation(); onClick(); }}
+        className={`absolute w-6 h-6 rounded-full flex items-center justify-center opacity-0 group-hover/insert:opacity-100 transition-opacity bg-red-500 text-white shadow-md shadow-red-500/20`}
         title="Insert new paragraph here"
       >
         <Plus size={14} />
